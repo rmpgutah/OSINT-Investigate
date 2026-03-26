@@ -3,306 +3,284 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OSINT Investigation Suite — Downloads | RMPG Flex</title>
+    <title>Downloads | RMPG Utah</title>
     <style>
         :root {
-            --bg: #0a0b0f;
-            --surface: #13151c;
-            --card: #1a1d27;
-            --border: #2a2f3d;
-            --text: #e4e6eb;
-            --text-dim: #8b92a5;
-            --accent: #3b82f6;
-            --accent-glow: rgba(59, 130, 246, 0.15);
+            --bg: #0a0a0a;
+            --surface: #111113;
+            --card: #18181b;
+            --border: #27272a;
+            --hover: #2a2a2e;
+            --text: #fafafa;
+            --dim: #a1a1aa;
+            --muted: #71717a;
+            --blue: #3b82f6;
+            --blue2: #2563eb;
             --green: #22c55e;
             --purple: #a855f7;
             --orange: #f59e0b;
+            --red: #ef4444;
         }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.6;
-            min-height: 100vh;
-        }
+        body { font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
 
         .hero {
             text-align: center;
-            padding: 80px 20px 60px;
-            background: linear-gradient(180deg, rgba(59,130,246,0.08) 0%, transparent 100%);
+            padding: 80px 24px 50px;
+            background: radial-gradient(ellipse at 50% 0%, rgba(59,130,246,0.08) 0%, transparent 70%);
         }
+        .hero h1 { font-size: 2.8rem; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 0.5rem; }
+        .hero .subtitle { font-size: 1.05rem; color: var(--dim); max-width: 560px; margin: 0 auto 1.5rem; font-weight: 400; }
+        .hero-badge { display: inline-block; padding: 0.3rem 0.9rem; background: var(--card); border: 1px solid var(--border); border-radius: 20px; font-size: 0.78rem; color: var(--dim); }
 
-        .hero h1 {
-            font-size: 3rem;
-            font-weight: 800;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(135deg, #3b82f6, #a855f7);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+        /* Section divider */
+        .app-section { margin-bottom: 4rem; }
+        .app-section-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
         }
-
-        .hero .subtitle {
-            font-size: 1.25rem;
-            color: var(--text-dim);
-            max-width: 600px;
-            margin: 0 auto 2rem;
+        .app-icon {
+            width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800;
         }
+        .app-section-header h2 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; }
+        .app-section-header .app-version { color: var(--muted); font-size: 0.8rem; font-weight: 400; }
+        .app-section-header p { color: var(--dim); font-size: 0.88rem; margin-top: 0.15rem; font-weight: 400; }
 
-        .version-badge {
-            display: inline-block;
-            padding: 0.3rem 0.8rem;
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            font-size: 0.85rem;
-            color: var(--green);
-        }
-
-        .container { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
-
-        .platforms {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 4rem;
-        }
-
+        /* Platform cards */
+        .platforms { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
         .platform-card {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 2rem;
-            text-align: center;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .platform-card:hover {
-            border-color: var(--accent);
-            box-shadow: 0 0 30px var(--accent-glow);
-            transform: translateY(-4px);
-        }
-
-        .platform-icon {
-            font-size: 3.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .platform-card h2 {
-            font-size: 1.4rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .platform-card .description {
-            color: var(--text-dim);
-            font-size: 0.9rem;
-            margin-bottom: 1.5rem;
-            min-height: 3rem;
-        }
-
-        .platform-card .meta {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-            font-size: 0.8rem;
-            color: var(--text-dim);
-        }
-
-        .download-btn {
-            display: inline-block;
-            width: 100%;
-            padding: 0.8rem 1.5rem;
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all 0.2s;
-        }
-
-        .download-btn:hover {
-            background: #2563eb;
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
-        }
-
-        .download-btn.mac { background: linear-gradient(135deg, #374151, #1f2937); }
-        .download-btn.mac:hover { background: linear-gradient(135deg, #4b5563, #374151); }
-
-        .download-btn.windows { background: linear-gradient(135deg, #0078d4, #005a9e); }
-        .download-btn.windows:hover { background: linear-gradient(135deg, #1a8ae6, #0078d4); }
-
-        .download-btn.android { background: linear-gradient(135deg, #3ddc84, #00a86b); color: #000; }
-        .download-btn.android:hover { background: linear-gradient(135deg, #5ce899, #3ddc84); }
-
-        .features {
-            padding: 3rem 0;
-            border-top: 1px solid var(--border);
-        }
-
-        .features h2 {
-            text-align: center;
-            font-size: 1.8rem;
-            margin-bottom: 2rem;
-        }
-
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .feature-item {
-            background: var(--surface);
-            border: 1px solid var(--border);
             border-radius: 12px;
             padding: 1.5rem;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
         }
+        .platform-card:hover { border-color: #3f3f46; transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
 
-        .feature-item h3 { font-size: 1rem; margin-bottom: 0.5rem; }
-        .feature-item p { color: var(--text-dim); font-size: 0.9rem; }
+        .platform-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+        .platform-header .icon { font-size: 1.8rem; line-height: 1; }
+        .platform-header h3 { font-size: 1rem; font-weight: 600; }
 
+        .platform-desc { color: var(--dim); font-size: 0.82rem; margin-bottom: 1.25rem; flex: 1; font-weight: 400; }
+
+        .platform-meta { display: flex; gap: 0.75rem; margin-bottom: 1rem; font-size: 0.72rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+
+        .dl-btn {
+            display: block; width: 100%; padding: 0.7rem; text-align: center;
+            border: none; border-radius: 8px; font-size: 0.88rem; font-weight: 600;
+            cursor: pointer; text-decoration: none; transition: all 0.15s;
+            font-family: inherit;
+        }
+        .dl-btn:hover { text-decoration: none; transform: translateY(-1px); }
+
+        .dl-rmpg-mac { background: linear-gradient(135deg, #27272a, #18181b); color: #fafafa; border: 1px solid #3f3f46; }
+        .dl-rmpg-mac:hover { background: linear-gradient(135deg, #3f3f46, #27272a); box-shadow: 0 4px 15px rgba(255,255,255,0.05); }
+
+        .dl-rmpg-win { background: linear-gradient(135deg, #1d4ed8, #1e40af); color: #fff; }
+        .dl-rmpg-win:hover { background: linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow: 0 4px 15px rgba(37,99,235,0.3); }
+
+        .dl-rmpg-android { background: linear-gradient(135deg, #16a34a, #15803d); color: #fff; }
+        .dl-rmpg-android:hover { background: linear-gradient(135deg, #22c55e, #16a34a); box-shadow: 0 4px 15px rgba(34,197,94,0.3); }
+
+        .dl-osint-mac { background: linear-gradient(135deg, #374151, #1f2937); color: #e5e7eb; border: 1px solid #4b5563; }
+        .dl-osint-mac:hover { background: linear-gradient(135deg, #4b5563, #374151); }
+
+        .dl-osint-win { background: linear-gradient(135deg, #0369a1, #075985); color: #fff; }
+        .dl-osint-win:hover { background: linear-gradient(135deg, #0284c7, #0369a1); box-shadow: 0 4px 15px rgba(3,105,161,0.3); }
+
+        .dl-osint-android { background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; }
+        .dl-osint-android:hover { background: linear-gradient(135deg, #8b5cf6, #7c3aed); box-shadow: 0 4px 15px rgba(124,58,237,0.3); }
+
+        /* Features */
+        .features { padding: 2.5rem 0; border-top: 1px solid var(--border); margin-top: 2rem; }
+        .features h2 { text-align: center; font-size: 1.3rem; margin-bottom: 1.5rem; letter-spacing: -0.02em; }
+        .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .feature-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+        .feature-item h3 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem; }
+        .feature-item p { color: var(--dim); font-size: 0.78rem; font-weight: 400; }
+
+        /* Sync banner */
         .sync-banner {
-            text-align: center;
-            padding: 3rem;
-            margin: 2rem 0;
-            background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(168,85,247,0.1));
-            border: 1px solid var(--border);
-            border-radius: 16px;
+            text-align: center; padding: 2.5rem; margin: 2rem 0;
+            background: linear-gradient(135deg, rgba(59,130,246,0.06), rgba(168,85,247,0.06));
+            border: 1px solid var(--border); border-radius: 12px;
         }
+        .sync-banner h3 { font-size: 1.1rem; margin-bottom: 0.4rem; }
+        .sync-banner p { color: var(--dim); max-width: 480px; margin: 0 auto; font-size: 0.85rem; font-weight: 400; }
 
-        .sync-banner h2 { margin-bottom: 0.5rem; }
-        .sync-banner p { color: var(--text-dim); max-width: 500px; margin: 0 auto; }
+        .footer { text-align: center; padding: 3rem 0; color: var(--muted); font-size: 0.78rem; border-top: 1px solid var(--border); margin-top: 3rem; }
+        .footer a { color: var(--blue); text-decoration: none; }
 
-        .requirements {
-            padding: 2rem 0;
-            text-align: center;
-        }
-
-        .requirements table {
-            margin: 1rem auto;
-            border-collapse: collapse;
-            text-align: left;
-        }
-
-        .requirements th, .requirements td {
-            padding: 0.6rem 1.5rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .requirements th { color: var(--text-dim); font-weight: 600; }
-
-        .footer {
-            text-align: center;
-            padding: 3rem 0;
-            color: var(--text-dim);
-            font-size: 0.85rem;
-            border-top: 1px solid var(--border);
-        }
-
-        .footer a { color: var(--accent); text-decoration: none; }
-
-        @media (max-width: 640px) {
+        @media (max-width: 700px) {
             .hero h1 { font-size: 2rem; }
-            .hero { padding: 40px 20px 30px; }
+            .hero { padding: 50px 16px 30px; }
             .platforms { grid-template-columns: 1fr; }
+            .feature-grid { grid-template-columns: 1fr; }
         }
     </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 
 <div class="hero">
-    <h1>OSINT Investigation Suite</h1>
-    <p class="subtitle">
-        Professional open-source intelligence platform for investigators, skip-tracers, and analysts.
-        Case management, automated OSINT modules, and cross-platform data sync.
-    </p>
-    <span class="version-badge">v0.1.0 — Latest Release</span>
+    <h1>RMPG Downloads</h1>
+    <p class="subtitle">Software by Rocky Mountain Protective Group. Download the latest versions for Mac, Windows, and Android.</p>
 </div>
 
 <div class="container">
 
-    <div class="platforms">
-        <!-- macOS -->
-        <div class="platform-card">
-            <div class="platform-icon">&#63743;</div>
-            <h2>macOS</h2>
-            <p class="description">Native .app bundle with menu bar integration. Runs the full web dashboard locally.</p>
-            <div class="meta">
-                <span>DMG Installer</span>
-                <span>macOS 12+</span>
-                <span>~85 MB</span>
+    <!-- ═══════════════ RMPG Flex ═══════════════ -->
+    <div class="app-section">
+        <div class="app-section-header">
+            <div class="app-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #fff;">RF</div>
+            <div>
+                <h2>RMPG Flex <span class="app-version">v5.6.0</span></h2>
+                <p>CAD/RMS — Computer-Aided Dispatch & Records Management System</p>
             </div>
-            <a href="/downloads/OSINT-Suite-macOS.dmg" class="download-btn mac">
-                Download for Mac
-            </a>
         </div>
 
-        <!-- Windows -->
-        <div class="platform-card">
-            <div class="platform-icon">&#9783;</div>
-            <h2>Windows</h2>
-            <p class="description">Standalone executable — no Python installation required. Unzip and run.</p>
-            <div class="meta">
-                <span>ZIP Archive</span>
-                <span>Windows 10+</span>
-                <span>~95 MB</span>
+        <div class="platforms">
+            <div class="platform-card">
+                <div class="platform-header">
+                    <span class="icon">&#63743;</span>
+                    <h3>macOS</h3>
+                </div>
+                <p class="platform-desc">Native Electron app with offline sync, GPS tracking, and local database for field use.</p>
+                <div class="platform-meta">
+                    <span>DMG</span>
+                    <span>Apple Silicon</span>
+                    <span>~106 MB</span>
+                </div>
+                <a href="RMPG-Flex-macOS.dmg" class="dl-btn dl-rmpg-mac">Download for Mac</a>
             </div>
-            <a href="/downloads/OSINT-Suite-Windows.zip" class="download-btn windows">
-                Download for Windows
-            </a>
-        </div>
 
-        <!-- Android -->
-        <div class="platform-card">
-            <div class="platform-icon">&#9883;</div>
-            <h2>Android</h2>
-            <p class="description">WebView app that connects to your OSINT Suite server. Investigate on the go.</p>
-            <div class="meta">
-                <span>APK File</span>
-                <span>Android 7.0+</span>
-                <span>~5 MB</span>
+            <div class="platform-card">
+                <div class="platform-header">
+                    <span class="icon" style="font-size: 1.5rem;">&#9783;</span>
+                    <h3>Windows</h3>
+                </div>
+                <p class="platform-desc">Standalone installer with auto-updates. Full offline mode with background sync.</p>
+                <div class="platform-meta">
+                    <span>EXE</span>
+                    <span>Windows 10+</span>
+                    <span>~85 MB</span>
+                </div>
+                <a href="RMPG-Flex-Windows.exe" class="dl-btn dl-rmpg-win">Download for Windows</a>
             </div>
-            <a href="/downloads/OSINT-Suite-Android.apk" class="download-btn android">
-                Download APK
-            </a>
+
+            <div class="platform-card">
+                <div class="platform-header">
+                    <span class="icon">&#9883;</span>
+                    <h3>Android</h3>
+                </div>
+                <p class="platform-desc">Capacitor mobile app with push notifications, GPS, and camera integration.</p>
+                <div class="platform-meta">
+                    <span>APK</span>
+                    <span>Android 7.0+</span>
+                    <span>~20 MB</span>
+                </div>
+                <a href="RMPG-Flex-Android.apk" class="dl-btn dl-rmpg-android">Download APK</a>
+            </div>
         </div>
     </div>
 
+    <!-- ═══════════════ OSINT Suite ═══════════════ -->
+    <div class="app-section">
+        <div class="app-section-header">
+            <div class="app-icon" style="background: linear-gradient(135deg, #7c3aed, #5b21b6); color: #fff;">OS</div>
+            <div>
+                <h2>OSINT Investigation Suite <span class="app-version">v0.1.0</span></h2>
+                <p>Open-source intelligence platform for investigators and analysts</p>
+            </div>
+        </div>
+
+        <div class="platforms">
+            <div class="platform-card">
+                <div class="platform-header">
+                    <span class="icon">&#63743;</span>
+                    <h3>macOS</h3>
+                </div>
+                <p class="platform-desc">Web dashboard app with 6 OSINT modules, case management, and report generation.</p>
+                <div class="platform-meta">
+                    <span>DMG</span>
+                    <span>macOS 12+</span>
+                    <span>~85 MB</span>
+                </div>
+                <a href="OSINT-Suite-macOS.dmg" class="dl-btn dl-osint-mac" style="opacity:0.5; pointer-events:none;">Coming Soon</a>
+            </div>
+
+            <div class="platform-card">
+                <div class="platform-header">
+                    <span class="icon" style="font-size: 1.5rem;">&#9783;</span>
+                    <h3>Windows</h3>
+                </div>
+                <p class="platform-desc">Standalone executable. No Python required. Unzip and run.</p>
+                <div class="platform-meta">
+                    <span>ZIP</span>
+                    <span>Windows 10+</span>
+                    <span>~95 MB</span>
+                </div>
+                <a href="OSINT-Suite-Windows.zip" class="dl-btn dl-osint-win" style="opacity:0.5; pointer-events:none;">Coming Soon</a>
+            </div>
+
+            <div class="platform-card">
+                <div class="platform-header">
+                    <span class="icon">&#9883;</span>
+                    <h3>Android</h3>
+                </div>
+                <p class="platform-desc">WebView app that connects to your OSINT Suite server for mobile investigations.</p>
+                <div class="platform-meta">
+                    <span>APK</span>
+                    <span>Android 7.0+</span>
+                    <span>~5 MB</span>
+                </div>
+                <a href="OSINT-Suite-Android.apk" class="dl-btn dl-osint-android" style="opacity:0.5; pointer-events:none;">Coming Soon</a>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 1rem;">
+            <p style="color: var(--muted); font-size: 0.82rem;">
+                Web dashboard available now at <a href="https://rmpgutah.us/osint/" style="color: var(--blue);">rmpgutah.us/osint</a>
+                &nbsp;&middot;&nbsp;
+                CLI: <code style="background: var(--card); padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.78rem;">pip install osintsuite</code>
+            </p>
+        </div>
+    </div>
+
+    <!-- Sync banner -->
     <div class="sync-banner">
-        <h2>Cross-Platform Data Sync</h2>
-        <p>
-            All platforms connect to the same cloud PostgreSQL database.
-            Start an investigation on your Mac, review findings on Windows,
-            and check updates from your Android device — all data stays in sync.
-        </p>
+        <h3>Cross-Platform Data Sync</h3>
+        <p>Both apps sync across all platforms. Start on Mac, continue on Windows, check from Android. All data stays in sync via cloud database.</p>
     </div>
 
+    <!-- Features -->
     <div class="features">
-        <h2>What's Included</h2>
+        <h2>OSINT Suite Features</h2>
         <div class="feature-grid">
             <div class="feature-item">
                 <h3>6 OSINT Modules</h3>
-                <p>Person search, email intel, phone lookup, domain recon, web scraping, and social media enumeration.</p>
+                <p>Person search, email intel, phone lookup, domain recon, web scraping, social media enumeration.</p>
             </div>
             <div class="feature-item">
                 <h3>Case Management</h3>
-                <p>Create, track, and close investigations. Add targets with full PII fields. Generate reports.</p>
+                <p>Create investigations, add targets with PII, track findings, generate professional reports.</p>
             </div>
             <div class="feature-item">
                 <h3>Smart Correlation</h3>
-                <p>Automatic cross-referencing of findings across targets using exact and fuzzy matching.</p>
+                <p>Auto cross-reference findings across targets using exact and fuzzy matching algorithms.</p>
             </div>
             <div class="feature-item">
                 <h3>Multi-Format Reports</h3>
-                <p>Export investigations as CSV, HTML, JSON, or PDF. Professional formatting ready for clients.</p>
+                <p>Export as CSV, HTML, JSON, or PDF. Client-ready formatting out of the box.</p>
             </div>
             <div class="feature-item">
                 <h3>CLI + Web Dashboard</h3>
@@ -310,29 +288,17 @@
             </div>
             <div class="feature-item">
                 <h3>Secure by Design</h3>
-                <p>Parameterized queries, environment-based config, rate limiting, and input validation throughout.</p>
+                <p>Parameterized queries, env-based config, rate limiting, input validation throughout.</p>
             </div>
         </div>
-    </div>
-
-    <div class="requirements">
-        <h2>System Requirements</h2>
-        <table>
-            <tr><th>Platform</th><th>Requirement</th><th>Notes</th></tr>
-            <tr><td>macOS</td><td>macOS 12 Monterey+</td><td>Intel & Apple Silicon</td></tr>
-            <tr><td>Windows</td><td>Windows 10+</td><td>64-bit only</td></tr>
-            <tr><td>Android</td><td>Android 7.0+ (API 24)</td><td>Requires network connection to server</td></tr>
-            <tr><td>Database</td><td>PostgreSQL 14+</td><td>Cloud or local — all platforms share one DB</td></tr>
-        </table>
     </div>
 
 </div>
 
 <div class="footer">
-    <p>
-        OSINT Investigation Suite &copy; 2024 &mdash;
-        <a href="https://github.com/JeremyEngram/OSINT-Investigate">GitHub</a> &middot;
-        <a href="https://rmpgutah.us">RMPG Flex</a>
+    <p>Rocky Mountain Protective Group &copy; 2024&ndash;2026 &mdash;
+        <a href="https://rmpgutah.us">rmpgutah.us</a> &middot;
+        <a href="https://github.com/rmpgutah/OSINT-Investigate">GitHub</a>
     </p>
 </div>
 
