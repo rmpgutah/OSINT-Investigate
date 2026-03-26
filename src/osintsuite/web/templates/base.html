@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}OSINT Investigation Suite{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="/">OSINT Suite</a>
+        </div>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/api/investigations" target="_blank">API</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>OSINT Investigation Suite v0.1.0</p>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}{{ investigation.case_number }} — OSINT Suite{% endblock %}
+
+{% block content %}
+<div class="investigation-detail">
+    <div class="page-header">
+        <div>
+            <h1>{{ investigation.case_number }}</h1>
+            <p class="subtitle">{{ investigation.title }}</p>
+        </div>
+        <span class="badge badge-{{ investigation.status }}">{{ investigation.status }}</span>
+    </div>
+
+    {% if investigation.description %}
+    <div class="card">
+        <h3>Description</h3>
+        <p>{{ investigation.description }}</p>
+    </div>
+    {% endif %}
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Targets ({{ investigation.targets|length }})</h2>
+            <button class="btn btn-primary" onclick="document.getElementById('addTargetModal').style.display='flex'">Add Target</button>
+        </div>
+
+        {% if investigation.targets %}
+        <div class="target-grid">
+            {% for target in investigation.targets %}
+            <div class="card target-card">
+                <div class="target-header">
+                    <span class="badge badge-type">{{ target.target_type }}</span>
+                    <a href="/target/{{ target.id }}/profile">{{ target.label }}</a>
+                </div>
+                <div class="target-details">
+                    {% if target.full_name %}<p><strong>Name:</strong> {{ target.full_name }}</p>{% endif %}
+                    {% if target.email %}<p><strong>Email:</strong> {{ target.email }}</p>{% endif %}
+                    {% if target.phone %}<p><strong>Phone:</strong> {{ target.phone }}</p>{% endif %}
+                    {% if target.city %}<p><strong>Location:</strong> {{ target.city }}{% if target.state %}, {{ target.state }}{% endif %}</p>{% endif %}
+                </div>
+                <div class="target-stats">
+                    <span>{{ target.findings|length }} findings</span>
+                    <span>{{ target.module_runs|length }} module runs</span>
+                </div>
+                <div class="target-actions">
+                    <a href="/target/{{ target.id }}/profile" class="btn btn-sm">Profile</a>
+                    <button class="btn btn-sm btn-primary" onclick="runModules('{{ target.id }}')">Run Modules</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No targets added yet.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if investigation.reports %}
+    <div class="section">
+        <h2>Reports</h2>
+        <table class="data-table">
+            <thead>
+                <tr><th>Title</th><th>Format</th><th>Generated</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for report in investigation.reports %}
+                <tr>
+                    <td>{{ report.title }}</td>
+                    <td>{{ report.format }}</td>
+                    <td>{{ report.generated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td><a href="/api/reports/{{ report.id }}/download" class="btn btn-sm">Download</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Target Modal -->
+<div id="addTargetModal" class="modal" style="display:none">
+    <div class="modal-content">
+        <h3>Add Target</h3>
+        <form id="addTargetForm" onsubmit="addTarget(event)">
+            <div class="form-group">
+                <label>Type</label>
+                <select id="targetType" required>
+                    <option value="person">Person</option>
+                    <option value="domain">Domain</option>
+                    <option value="email">Email</option>
+                    <option value="phone">Phone</option>
+                    <option value="username">Username</option>
+                    <option value="ip">IP Address</option>
+                    <option value="organization">Organization</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Label</label>
+                <input type="text" id="targetLabel" required placeholder="Display name for this target">
+            </div>
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="targetName" placeholder="John Doe">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="targetEmail" placeholder="john@example.com">
+            </div>
+            <div class="form-group">
+                <label>Phone</label>
+                <input type="text" id="targetPhone" placeholder="555-555-5555">
+            </div>
+            <div class="form-group">
+                <label>City</label>
+                <input type="text" id="targetCity" placeholder="Portland">
+            </div>
+            <div class="form-group">
+                <label>State</label>
+                <input type="text" id="targetState" placeholder="OR">
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn" onclick="document.getElementById('addTargetModal').style.display='none'">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Target</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function addTarget(e) {
+    e.preventDefault();
+    const data = {
+        investigation_id: "{{ investigation.id }}",
+        target_type: document.getElementById('targetType').value,
+        label: document.getElementById('targetLabel').value,
+        full_name: document.getElementById('targetName').value || null,
+        email: document.getElementById('targetEmail').value || null,
+        phone: document.getElementById('targetPhone').value || null,
+        city: document.getElementById('targetCity').value || null,
+        state: document.getElementById('targetState').value || null,
+    };
+
+    const response = await fetch('/api/targets/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    });
+
+    if (response.ok) {
+        window.location.reload();
+    } else {
+        const err = await response.json();
+        alert('Failed: ' + JSON.stringify(err));
+    }
+}
+
+async function runModules(targetId) {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = 'Running...';
+
+    const response = await fetch(`/api/targets/${targetId}/run`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({})
+    });
+
+    if (response.ok) {
+        const result = await response.json();
+        alert(`Completed: ${result.total_findings} findings from ${result.modules_run.length} modules`);
+        window.location.reload();
+    } else {
+        alert('Module run failed');
+        btn.disabled = false;
+        btn.textContent = 'Run Modules';
+    }
+}
+</script>
+{% endblock %}

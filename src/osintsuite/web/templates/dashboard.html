@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — OSINT Suite{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <h1>Investigation Dashboard</h1>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number">{{ stats.total_cases }}</div>
+            <div class="stat-label">Total Cases</div>
+        </div>
+        <div class="stat-card stat-open">
+            <div class="stat-number">{{ stats.open_cases }}</div>
+            <div class="stat-label">Open</div>
+        </div>
+        <div class="stat-card stat-active">
+            <div class="stat-number">{{ stats.active_cases }}</div>
+            <div class="stat-label">Active</div>
+        </div>
+        <div class="stat-card stat-closed">
+            <div class="stat-number">{{ stats.closed_cases }}</div>
+            <div class="stat-label">Closed</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Investigations</h2>
+            <button class="btn btn-primary" onclick="document.getElementById('newCaseModal').style.display='flex'">New Case</button>
+        </div>
+
+        {% if investigations %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Case #</th>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in investigations %}
+                <tr>
+                    <td><a href="/investigation/{{ inv.case_number }}">{{ inv.case_number }}</a></td>
+                    <td>{{ inv.title }}</td>
+                    <td><span class="badge badge-{{ inv.status }}">{{ inv.status }}</span></td>
+                    <td>{{ inv.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td><a href="/investigation/{{ inv.case_number }}" class="btn btn-sm">View</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>No investigations yet. Create your first case to get started.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- New Case Modal -->
+<div id="newCaseModal" class="modal" style="display:none">
+    <div class="modal-content">
+        <h3>New Investigation</h3>
+        <form id="newCaseForm" onsubmit="createCase(event)">
+            <div class="form-group">
+                <label for="title">Title</label>
+                <input type="text" id="title" name="title" required placeholder="e.g., Missing Person - Jane Doe">
+            </div>
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="3" placeholder="Case details..."></textarea>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn" onclick="document.getElementById('newCaseModal').style.display='none'">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Case</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function createCase(e) {
+    e.preventDefault();
+    const title = document.getElementById('title').value;
+    const description = document.getElementById('description').value;
+
+    const response = await fetch('/api/investigations/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title, description})
+    });
+
+    if (response.ok) {
+        window.location.reload();
+    } else {
+        alert('Failed to create case');
+    }
+}
+</script>
+{% endblock %}
