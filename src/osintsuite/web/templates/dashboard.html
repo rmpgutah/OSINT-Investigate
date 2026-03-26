@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="dashboard">
-    <h1>Investigation Dashboard</h1>
+    <h1 style="margin-bottom: 1.5rem;">Investigation Dashboard</h1>
 
     <div class="stats-grid">
         <div class="stat-card">
@@ -28,7 +28,9 @@
     <div class="section">
         <div class="section-header">
             <h2>Investigations</h2>
-            <button class="btn btn-primary" onclick="document.getElementById('newCaseModal').style.display='flex'">New Case</button>
+            <button class="btn btn-primary" onclick="document.getElementById('newCaseModal').style.display='flex'">
+                + New Case
+            </button>
         </div>
 
         {% if investigations %}
@@ -39,45 +41,47 @@
                     <th>Title</th>
                     <th>Status</th>
                     <th>Created</th>
-                    <th>Actions</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
                 {% for inv in investigations %}
                 <tr>
-                    <td><a href="/investigation/{{ inv.case_number }}">{{ inv.case_number }}</a></td>
+                    <td><a href="./investigation/{{ inv.case_number }}"><strong>{{ inv.case_number }}</strong></a></td>
                     <td>{{ inv.title }}</td>
                     <td><span class="badge badge-{{ inv.status }}">{{ inv.status }}</span></td>
-                    <td>{{ inv.created_at.strftime('%Y-%m-%d') }}</td>
-                    <td><a href="/investigation/{{ inv.case_number }}" class="btn btn-sm">View</a></td>
+                    <td style="color: var(--dim);">{{ inv.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td><a href="./investigation/{{ inv.case_number }}" class="btn btn-sm">View</a></td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         {% else %}
         <div class="empty-state">
-            <p>No investigations yet. Create your first case to get started.</p>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem; opacity: 0.4;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <p>No investigations yet.</p>
+            <p style="font-size: 0.88rem; margin-top: 0.5rem;">Click <strong>+ New Case</strong> to start your first investigation.</p>
         </div>
         {% endif %}
     </div>
 </div>
 
 <!-- New Case Modal -->
-<div id="newCaseModal" class="modal" style="display:none">
+<div id="newCaseModal" class="modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
     <div class="modal-content">
         <h3>New Investigation</h3>
         <form id="newCaseForm" onsubmit="createCase(event)">
             <div class="form-group">
                 <label for="title">Title</label>
-                <input type="text" id="title" name="title" required placeholder="e.g., Missing Person - Jane Doe">
+                <input type="text" id="title" name="title" required placeholder="e.g., Missing Person - Jane Doe" autofocus>
             </div>
             <div class="form-group">
                 <label for="description">Description</label>
-                <textarea id="description" name="description" rows="3" placeholder="Case details..."></textarea>
+                <textarea id="description" name="description" rows="3" placeholder="Case details, background, objectives..."></textarea>
             </div>
             <div class="form-actions">
                 <button type="button" class="btn" onclick="document.getElementById('newCaseModal').style.display='none'">Cancel</button>
-                <button type="submit" class="btn btn-primary">Create Case</button>
+                <button type="submit" class="btn btn-primary" id="createBtn">Create Case</button>
             </div>
         </form>
     </div>
@@ -88,19 +92,34 @@
 <script>
 async function createCase(e) {
     e.preventDefault();
+    const btn = document.getElementById('createBtn');
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+
     const title = document.getElementById('title').value;
     const description = document.getElementById('description').value;
 
-    const response = await fetch('/api/investigations/', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({title, description})
-    });
+    try {
+        const response = await fetch('./api/investigations/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({title, description: description || null})
+        });
 
-    if (response.ok) {
-        window.location.reload();
-    } else {
-        alert('Failed to create case');
+        if (response.ok) {
+            const data = await response.json();
+            showToast('Case ' + data.case_number + ' created');
+            setTimeout(() => window.location.reload(), 800);
+        } else {
+            const err = await response.json();
+            showToast('Failed: ' + (err.detail || 'Unknown error'), 'error');
+            btn.disabled = false;
+            btn.textContent = 'Create Case';
+        }
+    } catch (err) {
+        showToast('Network error', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Create Case';
     }
 }
 </script>

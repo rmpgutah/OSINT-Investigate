@@ -4,17 +4,166 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}OSINT Investigation Suite{% endblock %}</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+    :root {
+        --bg: #0f1117;
+        --bg2: #1a1d27;
+        --card: #21252f;
+        --hover: #2a2f3a;
+        --text: #e4e6eb;
+        --dim: #9ca3b0;
+        --muted: #6b7280;
+        --accent: #3b82f6;
+        --accent2: #2563eb;
+        --green: #22c55e;
+        --yellow: #f59e0b;
+        --red: #ef4444;
+        --border: #2d3343;
+        --r: 8px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Navbar */
+    .navbar { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 2rem; background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; backdrop-filter: blur(12px); }
+    .nav-brand { display: flex; align-items: center; gap: 0.6rem; }
+    .nav-brand svg { width: 28px; height: 28px; }
+    .nav-brand a { color: var(--text); font-weight: 700; font-size: 1.15rem; text-decoration: none; }
+    .nav-links { display: flex; align-items: center; gap: 1.5rem; }
+    .nav-links a { color: var(--dim); font-size: 0.9rem; text-decoration: none; padding: 0.3rem 0; border-bottom: 2px solid transparent; transition: all 0.2s; }
+    .nav-links a:hover, .nav-links a.active { color: var(--text); border-bottom-color: var(--accent); text-decoration: none; }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+    /* Cards */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 1.5rem; margin-bottom: 1rem; }
+    .card h3 { font-size: 1rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 1rem; }
+
+    /* Stats */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2.5rem; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 1.25rem 1.5rem; position: relative; overflow: hidden; }
+    .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent); }
+    .stat-number { font-size: 2.2rem; font-weight: 800; color: var(--accent); line-height: 1.1; }
+    .stat-label { color: var(--dim); font-size: 0.85rem; margin-top: 0.25rem; font-weight: 500; }
+    .stat-open::before { background: var(--green); }
+    .stat-open .stat-number { color: var(--green); }
+    .stat-active::before { background: var(--yellow); }
+    .stat-active .stat-number { color: var(--yellow); }
+    .stat-closed::before { background: var(--muted); }
+    .stat-closed .stat-number { color: var(--muted); }
+
+    /* Sections */
+    .section { margin-top: 2rem; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+    .section-header h2 { font-size: 1.3rem; font-weight: 700; }
+
+    /* Tables */
+    .data-table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--card); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+    .data-table th, .data-table td { padding: 0.8rem 1.2rem; text-align: left; border-bottom: 1px solid var(--border); }
+    .data-table th { background: var(--bg2); color: var(--dim); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .data-table tbody tr { transition: background 0.15s; }
+    .data-table tbody tr:hover { background: var(--hover); }
+    .data-table tbody tr:last-child td { border-bottom: none; }
+
+    /* Badges */
+    .badge { display: inline-block; padding: 0.2rem 0.65rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.03em; }
+    .badge-open { background: #064e3b; color: #6ee7b7; }
+    .badge-active { background: #78350f; color: #fcd34d; }
+    .badge-closed { background: #374151; color: #9ca3af; }
+    .badge-archived { background: #312e81; color: #a5b4fc; }
+    .badge-type { background: #1e3a5f; color: #93c5fd; }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.55rem 1.1rem; border: 1px solid var(--border); border-radius: var(--r); background: var(--card); color: var(--text); cursor: pointer; font-size: 0.88rem; font-weight: 500; transition: all 0.15s; text-decoration: none; }
+    .btn:hover { background: var(--hover); text-decoration: none; }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent2); box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
+    .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.8rem; }
+    .btn-block { display: block; width: 100%; text-align: center; margin-bottom: 0.5rem; justify-content: center; }
+    .btn-danger { background: #7f1d1d; border-color: #991b1b; color: #fca5a5; }
+    .btn-danger:hover { background: #991b1b; }
+
+    /* Forms */
+    .form-group { margin-bottom: 1.1rem; }
+    .form-group label { display: block; margin-bottom: 0.35rem; color: var(--dim); font-size: 0.85rem; font-weight: 500; }
+    .form-group input, .form-group textarea, .form-group select {
+        width: 100%; padding: 0.65rem 0.9rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r); color: var(--text); font-size: 0.92rem; font-family: inherit; transition: border-color 0.2s;
+    }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+    .form-group input::placeholder, .form-group textarea::placeholder { color: var(--muted); }
+    .form-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.25rem; }
+
+    /* Modal */
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
+    .modal-content { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; width: 90%; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+    .modal-content h3 { margin-bottom: 1.25rem; font-size: 1.2rem; }
+
+    /* Target Grid */
+    .target-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1rem; }
+    .target-card .target-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.75rem; }
+    .target-card .target-header a { font-weight: 600; font-size: 1.1rem; }
+    .target-details p { color: var(--dim); font-size: 0.88rem; margin-bottom: 0.25rem; }
+    .target-stats { display: flex; gap: 1.2rem; color: var(--muted); font-size: 0.82rem; margin: 0.75rem 0; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+    .target-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+
+    /* Profile */
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; }
+    .page-header h1 { margin-bottom: 0.3rem; font-size: 1.8rem; }
+    .subtitle { color: var(--dim); font-size: 1.05rem; }
+    .profile-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1.25rem; margin-bottom: 2rem; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .info-item strong { display: block; color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.15rem; }
+    .info-item span { font-size: 0.95rem; }
+
+    /* Tabs */
+    .tab-nav { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 0; }
+    .tab-btn { padding: 0.7rem 1.3rem; background: none; border: none; color: var(--dim); cursor: pointer; font-size: 0.88rem; font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.2s; }
+    .tab-btn:hover { color: var(--text); background: var(--hover); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Confidence */
+    .confidence { font-weight: 700; font-size: 0.85rem; }
+    .confidence-high { color: var(--green); }
+    .confidence-medium { color: var(--yellow); }
+    .confidence-low { color: var(--red); }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 4rem 2rem; color: var(--muted); background: var(--card); border-radius: var(--r); border: 1px dashed var(--border); }
+    .empty-state p { font-size: 1rem; }
+
+    /* Footer */
+    .footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--border); margin-top: 3rem; }
+
+    /* Toast notification */
+    .toast { position: fixed; bottom: 2rem; right: 2rem; background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 1rem 1.5rem; box-shadow: 0 8px 30px rgba(0,0,0,0.4); z-index: 200; transform: translateY(120%); transition: transform 0.3s ease; }
+    .toast.show { transform: translateY(0); }
+    .toast-success { border-left: 4px solid var(--green); }
+    .toast-error { border-left: 4px solid var(--red); }
+
+    @media (max-width: 768px) {
+        .container { padding: 1rem; }
+        .profile-grid { grid-template-columns: 1fr; }
+        .target-grid { grid-template-columns: 1fr; }
+        .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        .info-grid { grid-template-columns: 1fr; }
+        .navbar { padding: 0.8rem 1rem; }
+    }
+    </style>
     {% block head %}{% endblock %}
 </head>
 <body>
     <nav class="navbar">
         <div class="nav-brand">
-            <a href="/">OSINT Suite</a>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <a href="./">OSINT Suite</a>
         </div>
         <div class="nav-links">
-            <a href="/">Dashboard</a>
-            <a href="/api/investigations" target="_blank">API</a>
+            <a href="./">Dashboard</a>
+            <a href="./api/investigations" target="_blank">API</a>
         </div>
     </nav>
 
@@ -26,6 +175,16 @@
         <p>OSINT Investigation Suite v0.1.0</p>
     </footer>
 
+    <div id="toast" class="toast"></div>
+
+    <script>
+    function showToast(msg, type = 'success') {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'toast toast-' + type + ' show';
+        setTimeout(() => t.classList.remove('show'), 3500);
+    }
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
