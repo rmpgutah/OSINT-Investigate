@@ -18,9 +18,13 @@ from osintsuite.db.repository import Repository
 from osintsuite.modules.base import BaseModule, RateLimiter
 from osintsuite.modules.domain_recon import DomainReconModule
 from osintsuite.modules.email_intel import EmailIntelModule
+from osintsuite.modules.hash_intel import HashIntelModule
+from osintsuite.modules.ip_forensics import IpForensicsModule
+from osintsuite.modules.metadata_forensics import MetadataForensicsModule
 from osintsuite.modules.person_search import PersonSearchModule
 from osintsuite.modules.phone_lookup import PhoneLookupModule
 from osintsuite.modules.social_media import SocialMediaModule
+from osintsuite.modules.timeline_forensics import TimelineForensicsModule
 from osintsuite.modules.web_scraper import WebScraperModule
 
 if TYPE_CHECKING:
@@ -55,6 +59,16 @@ class InvestigationEngine:
         self.modules["phone_lookup"] = PhoneLookupModule(client, limiter)
         self.modules["domain_recon"] = DomainReconModule(client, limiter)
         self.modules["social_media"] = SocialMediaModule(client, limiter)
+
+        # Forensics modules
+        self.modules["ip_forensics"] = IpForensicsModule(client, limiter)
+        self.modules["metadata_forensics"] = MetadataForensicsModule(client, limiter)
+        self.modules["hash_intel"] = HashIntelModule(
+            client, limiter,
+            vt_api_key=self.settings.virustotal_api_key,
+            abuseipdb_api_key=self.settings.abuseipdb_api_key,
+        )
+        self.modules["timeline_forensics"] = TimelineForensicsModule(client, limiter)
 
     def list_modules(self) -> dict[str, str]:
         """Return module names and descriptions."""

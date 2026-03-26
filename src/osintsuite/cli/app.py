@@ -80,36 +80,21 @@ def modules():
 
     from rich.table import Table
 
-    # We just need module info, no DB needed
+    # Use the engine to discover all registered modules (single source of truth)
     settings = get_settings()
-    # Create a minimal engine just for listing
-    import httpx
-    from osintsuite.modules.base import RateLimiter
+
+    class _NoOpRepo:
+        pass
+
+    engine = InvestigationEngine(_NoOpRepo(), settings)
 
     table = Table(title="Available OSINT Modules")
     table.add_column("Name", style="cyan")
     table.add_column("Description")
     table.add_column("Target Types", style="green")
 
-    client = httpx.AsyncClient()
-    limiter = RateLimiter()
-    from osintsuite.modules.domain_recon import DomainReconModule
-    from osintsuite.modules.email_intel import EmailIntelModule
-    from osintsuite.modules.person_search import PersonSearchModule
-    from osintsuite.modules.phone_lookup import PhoneLookupModule
-    from osintsuite.modules.social_media import SocialMediaModule
-    from osintsuite.modules.web_scraper import WebScraperModule
-
-    all_modules = [
-        PersonSearchModule(client, limiter),
-        WebScraperModule(client, limiter),
-        EmailIntelModule(client, limiter),
-        PhoneLookupModule(client, limiter),
-        DomainReconModule(client, limiter),
-        SocialMediaModule(client, limiter),
-    ]
-    for mod in all_modules:
-        table.add_row(mod.name, mod.description, ", ".join(mod.applicable_target_types()))
+    for name, mod in engine.modules.items():
+        table.add_row(name, mod.description, ", ".join(mod.applicable_target_types()))
 
     console.print(table)
 

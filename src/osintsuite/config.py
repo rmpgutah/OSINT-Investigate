@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     # Optional API keys
     hibp_api_key: str | None = None
     shodan_api_key: str | None = None
+    virustotal_api_key: str | None = None
+    abuseipdb_api_key: str | None = None
 
     # Web interface
     web_host: str = "127.0.0.1"
