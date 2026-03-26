@@ -1,0 +1,13 @@
+{
+  "appId": "com.rmpg.osintsuite",
+  "appName": "OSINT Suite",
+  "webDir": "www",
+  "server": {
+    "url": "https://rmpgutah.us/osint/",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0f1117"
+  }
+}
