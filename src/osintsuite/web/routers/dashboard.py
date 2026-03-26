@@ -1,5 +1,7 @@
 """Dashboard HTML views."""
 
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -8,8 +10,6 @@ from osintsuite.db.repository import Repository
 from osintsuite.web.dependencies import get_repo
 
 router = APIRouter()
-
-from pathlib import Path
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
 
 
@@ -23,8 +23,9 @@ async def dashboard(request: Request, repo: Repository = Depends(get_repo)):
         "closed_cases": sum(1 for i in investigations if i.status == "closed"),
     }
     return templates.TemplateResponse(
+        request,
         "dashboard.html",
-        {"request": request, "investigations": investigations, "stats": stats},
+        context={"investigations": investigations, "stats": stats},
     )
 
 
@@ -38,8 +39,9 @@ async def investigation_detail(
 
     inv_full = await repo.get_investigation_full(inv.id)
     return templates.TemplateResponse(
+        request,
         "investigation_detail.html",
-        {"request": request, "investigation": inv_full},
+        context={"investigation": inv_full},
     )
 
 
@@ -59,6 +61,7 @@ async def target_profile(
         modules.setdefault(f.module_name, []).append(f)
 
     return templates.TemplateResponse(
+        request,
         "target_profile.html",
-        {"request": request, "target": target, "findings_by_module": modules},
+        context={"target": target, "findings_by_module": modules},
     )
