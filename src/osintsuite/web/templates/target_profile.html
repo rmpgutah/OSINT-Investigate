@@ -7,7 +7,7 @@
     <div class="page-header">
         <div>
             <div style="margin-bottom: 0.3rem;">
-                <a href="./" style="color: var(--dim); font-size: 0.85rem; text-decoration: none;">&larr; Dashboard</a>
+                <a href="/" style="color: var(--dim); font-size: 0.85rem; text-decoration: none;">&larr; Dashboard</a>
             </div>
             <h1>{{ target.label }}</h1>
             <span class="badge badge-type" style="margin-top: 0.3rem;">{{ target.target_type }}</span>
@@ -152,7 +152,7 @@ async function runModules() {
     btn.textContent = 'Running...';
 
     try {
-        const response = await fetch('./api/targets/{{ target.id }}/run', {
+        const response = await fetch('/api/targets/{{ target.id }}/run', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({})

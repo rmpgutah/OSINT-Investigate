@@ -13,7 +13,7 @@ router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
 
 
-@router.get("/", response_class=HTMLResponse)
+@router.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def dashboard(request: Request, repo: Repository = Depends(get_repo)):
     investigations = await repo.list_investigations()
     stats = {

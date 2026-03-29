@@ -47,11 +47,11 @@
             <tbody>
                 {% for inv in investigations %}
                 <tr>
-                    <td><a href="./investigation/{{ inv.case_number }}"><strong>{{ inv.case_number }}</strong></a></td>
+                    <td><a href="/investigation/{{ inv.case_number }}"><strong>{{ inv.case_number }}</strong></a></td>
                     <td>{{ inv.title }}</td>
                     <td><span class="badge badge-{{ inv.status }}">{{ inv.status }}</span></td>
                     <td style="color: var(--dim);">{{ inv.created_at.strftime('%Y-%m-%d') }}</td>
-                    <td><a href="./investigation/{{ inv.case_number }}" class="btn btn-sm">View</a></td>
+                    <td><a href="/investigation/{{ inv.case_number }}" class="btn btn-sm">View</a></td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -100,7 +100,7 @@ async function createCase(e) {
     const description = document.getElementById('description').value;
 
     try {
-        const response = await fetch('./api/investigations/', {
+        const response = await fetch('/api/investigations/', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({title, description: description || null})

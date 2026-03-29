@@ -7,7 +7,7 @@
     <div class="page-header">
         <div>
             <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.3rem;">
-                <a href="./" style="color: var(--dim); font-size: 0.85rem; text-decoration: none;">&larr; Dashboard</a>
+                <a href="/" style="color: var(--dim); font-size: 0.85rem; text-decoration: none;">&larr; Dashboard</a>
             </div>
             <h1>{{ investigation.case_number }}</h1>
             <p class="subtitle">{{ investigation.title }}</p>
@@ -34,7 +34,7 @@
             <div class="card target-card">
                 <div class="target-header">
                     <span class="badge badge-type">{{ target.target_type }}</span>
-                    <a href="./target/{{ target.id }}/profile">{{ target.label }}</a>
+                    <a href="/target/{{ target.id }}/profile">{{ target.label }}</a>
                 </div>
                 <div class="target-details">
                     {% if target.full_name %}<p><strong>Name:</strong> {{ target.full_name }}</p>{% endif %}
@@ -47,7 +47,7 @@
                     <span>{{ target.module_runs|length }} runs</span>
                 </div>
                 <div class="target-actions">
-                    <a href="./target/{{ target.id }}/profile" class="btn btn-sm">Profile</a>
+                    <a href="/target/{{ target.id }}/profile" class="btn btn-sm">Profile</a>
                     <button class="btn btn-sm btn-primary" onclick="runModules('{{ target.id }}', this)">Run Modules</button>
                 </div>
             </div>
@@ -75,7 +75,7 @@
                     <td>{{ report.title }}</td>
                     <td><span class="badge">{{ report.format }}</span></td>
                     <td style="color: var(--dim);">{{ report.generated_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                    <td><a href="./api/reports/{{ report.id }}/download" class="btn btn-sm">Download</a></td>
+                    <td><a href="/api/reports/{{ report.id }}/download" class="btn btn-sm">Download</a></td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -158,7 +158,7 @@ async function addTarget(e) {
     };
 
     try {
-        const response = await fetch('./api/targets/', {
+        const response = await fetch('/api/targets/', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
@@ -186,7 +186,7 @@ async function runModules(targetId, btn) {
     btn.textContent = 'Running...';
 
     try {
-        const response = await fetch('./api/targets/' + targetId + '/run', {
+        const response = await fetch('/api/targets/' + targetId + '/run', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({})
