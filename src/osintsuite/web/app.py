@@ -25,6 +25,16 @@ def create_app() -> FastAPI:
         description="OSINT Investigation Suite — Web Interface",
     )
 
+    @app.on_event("startup")
+    async def create_tables():
+        """Auto-create database tables on startup (safe for SQLite and Postgres)."""
+        from osintsuite.db.models import Base
+        from osintsuite.db.session import get_async_engine
+
+        engine = get_async_engine(settings)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
     # Static files
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

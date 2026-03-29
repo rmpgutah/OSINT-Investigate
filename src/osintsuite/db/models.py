@@ -14,7 +14,45 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import JSON
+from sqlalchemy.types import TypeDecorator, CHAR
+import uuid as _uuid_mod
+
+
+class PortableUUID(TypeDecorator):
+    """Platform-independent UUID type. Uses CHAR(32) for SQLite, native UUID for Postgres."""
+    impl = CHAR(32)
+    cache_ok = True
+
+    def __init__(self, *args, **kwargs):
+        # Accept and ignore as_uuid kwarg for Postgres compatibility
+        kwargs.pop("as_uuid", None)
+        super().__init__(*args, **kwargs)
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+            return dialect.type_descriptor(PG_UUID(as_uuid=True))
+        return dialect.type_descriptor(CHAR(32))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        if dialect.name == "postgresql":
+            return value
+        return value.hex if isinstance(value, _uuid_mod.UUID) else value
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        if not isinstance(value, _uuid_mod.UUID):
+            return _uuid_mod.UUID(value)
+        return value
+
+
+# Cross-database aliases
+JSONB = JSON
+UUID = PortableUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
