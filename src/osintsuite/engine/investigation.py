@@ -98,6 +98,34 @@ from osintsuite.modules.phone_deep import PhoneDeepModule
 from osintsuite.modules.email_deep import EmailDeepModule
 from osintsuite.modules.life_event_timeline import LifeEventTimelineModule
 
+# v0.5 — Deep Dive: Infrastructure & Cyber
+from osintsuite.modules.ssl_certificate import SslCertificateModule
+from osintsuite.modules.whois_history import WhoisHistoryModule
+from osintsuite.modules.malware_check import MalwareCheckModule
+from osintsuite.modules.data_breach_check import DataBreachCheckModule
+from osintsuite.modules.port_scan import PortScanModule
+
+# v0.5 — Deep Dive: Social & Reputation
+from osintsuite.modules.reputation_score import ReputationScoreModule
+from osintsuite.modules.forum_search import ForumSearchModule
+from osintsuite.modules.review_search import ReviewSearchModule
+from osintsuite.modules.dating_profile import DatingProfileModule
+from osintsuite.modules.podcast_media import PodcastMediaModule
+
+# v0.5 — Deep Dive: Person Intel
+from osintsuite.modules.hunting_fishing import HuntingFishingModule
+from osintsuite.modules.voter_registration import VoterRegistrationModule
+from osintsuite.modules.lawsuit_search import LawsuitSearchModule
+from osintsuite.modules.domain_neighbors import DomainNeighborsModule
+from osintsuite.modules.academic_papers import AcademicPapersModule
+
+# v0.5 — Deep Dive: Advanced Recon
+from osintsuite.modules.company_deep import CompanyDeepModule
+from osintsuite.modules.sanctions_check import SanctionsCheckModule
+from osintsuite.modules.trademark_patent import TrademarkPatentModule
+from osintsuite.modules.social_deep import SocialDeepModule
+from osintsuite.modules.website_content import WebsiteContentModule
+
 if TYPE_CHECKING:
     pass
 
@@ -213,6 +241,34 @@ class InvestigationEngine:
         self.modules["phone_deep"] = PhoneDeepModule(client, limiter)
         self.modules["email_deep"] = EmailDeepModule(client, limiter)
         self.modules["life_event_timeline"] = LifeEventTimelineModule(client, limiter)
+
+        # v0.5 — Deep Dive: Infrastructure & Cyber
+        self.modules["ssl_certificate"] = SslCertificateModule(client, limiter)
+        self.modules["whois_history"] = WhoisHistoryModule(client, limiter)
+        self.modules["malware_check"] = MalwareCheckModule(client, limiter)
+        self.modules["data_breach_check"] = DataBreachCheckModule(client, limiter)
+        self.modules["port_scan"] = PortScanModule(client, limiter)
+
+        # v0.5 — Deep Dive: Social & Reputation
+        self.modules["reputation_score"] = ReputationScoreModule(client, limiter)
+        self.modules["forum_search"] = ForumSearchModule(client, limiter)
+        self.modules["review_search"] = ReviewSearchModule(client, limiter)
+        self.modules["dating_profile"] = DatingProfileModule(client, limiter)
+        self.modules["podcast_media"] = PodcastMediaModule(client, limiter)
+
+        # v0.5 — Deep Dive: Person Intel
+        self.modules["hunting_fishing"] = HuntingFishingModule(client, limiter)
+        self.modules["voter_registration"] = VoterRegistrationModule(client, limiter)
+        self.modules["lawsuit_search"] = LawsuitSearchModule(client, limiter)
+        self.modules["domain_neighbors"] = DomainNeighborsModule(client, limiter)
+        self.modules["academic_papers"] = AcademicPapersModule(client, limiter)
+
+        # v0.5 — Deep Dive: Advanced Recon
+        self.modules["company_deep"] = CompanyDeepModule(client, limiter)
+        self.modules["sanctions_check"] = SanctionsCheckModule(client, limiter)
+        self.modules["trademark_patent"] = TrademarkPatentModule(client, limiter)
+        self.modules["social_deep"] = SocialDeepModule(client, limiter)
+        self.modules["website_content"] = WebsiteContentModule(client, limiter)
 
     def list_modules(self) -> dict[str, str]:
         """Return module names and descriptions."""
