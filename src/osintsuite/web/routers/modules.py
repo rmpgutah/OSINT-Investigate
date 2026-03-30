@@ -378,3 +378,84 @@ async def get_activity(limit: int = 20, repo: Repository = Depends(get_repo)):
             "relative_time": rel,
         })
     return items
+
+
+# ── Recent findings ─────────────────────────────────────────────────
+
+@router.get("/recent-findings")
+async def get_recent_findings(limit: int = 10, repo: Repository = Depends(get_repo)):
+    """Get most recent findings across all targets."""
+    from sqlalchemy import select
+    from osintsuite.db.models import Finding, Target, Investigation
+
+    q = (
+        select(Finding, Target.label, Target.investigation_id)
+        .join(Target, Finding.target_id == Target.id)
+        .order_by(Finding.created_at.desc())
+        .limit(limit)
+    )
+    result = await repo.session.execute(q)
+    rows = result.all()
+    return [
+        {
+            "id": str(f.id),
+            "title": f.title or f.finding_type,
+            "module_name": f.module_name,
+            "source": f.source,
+            "confidence": f.confidence,
+            "target_label": label,
+            "investigation_id": str(inv_id),
+            "created_at": f.created_at.isoformat(),
+        }
+        for f, label, inv_id in rows
+    ]
+
+
+# ── Module performance ──────────────────────────────────────────────
+
+@router.get("/performance/{investigation_id}")
+async def get_module_performance(
+    investigation_id: uuid.UUID,
+    repo: Repository = Depends(get_repo),
+):
+    """Get module performance metrics for an investigation."""
+    from sqlalchemy import select
+    from osintsuite.db.models import ModuleRun
+
+    targets = await repo.list_targets(investigation_id)
+    target_ids = [t.id for t in targets]
+    if not target_ids:
+        return []
+
+    q = (
+        select(ModuleRun)
+        .where(ModuleRun.target_id.in_(target_ids))
+        .order_by(ModuleRun.started_at.desc())
+    )
+    result = await repo.session.execute(q)
+    runs = result.scalars().all()
+
+    # Aggregate by module name
+    from collections import defaultdict
+
+    agg = defaultdict(lambda: {"runs": 0, "findings": 0, "durations": [], "last_run": None})
+    for r in runs:
+        m = agg[r.module_name]
+        m["runs"] += 1
+        m["findings"] += r.findings_count or 0
+        if r.started_at and r.completed_at:
+            dur = (r.completed_at - r.started_at).total_seconds()
+            m["durations"].append(dur)
+        if not m["last_run"] or (r.started_at and r.started_at > m["last_run"]):
+            m["last_run"] = r.started_at
+
+    return [
+        {
+            "module_name": name,
+            "total_runs": data["runs"],
+            "total_findings": data["findings"],
+            "avg_duration": round(sum(data["durations"]) / len(data["durations"]), 1) if data["durations"] else None,
+            "last_run": data["last_run"].isoformat() if data["last_run"] else None,
+        }
+        for name, data in sorted(agg.items(), key=lambda x: x[1]["findings"], reverse=True)
+    ]

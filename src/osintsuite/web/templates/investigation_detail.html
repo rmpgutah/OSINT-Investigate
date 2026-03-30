@@ -74,6 +74,20 @@
 /* Run dropdown category buttons */
 .run-cat-btn { display: block; width: 100%; text-align: left; padding: 0.45rem 1rem; background: none; border: none; color: var(--text); font-size: 0.85rem; cursor: pointer; font-family: inherit; }
 .run-cat-btn:hover { background: var(--bg); }
+
+/* Target search */
+.target-search-input { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r); padding: 0.5rem 0.75rem; color: var(--text); font-size: 0.85rem; font-family: inherit; width: 100%; max-width: 320px; outline: none; }
+.target-search-input:focus { border-color: var(--accent); }
+
+/* Investigation metadata sidebar card */
+.inv-meta-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+.inv-meta-card h3 { font-size: 0.95rem; margin-bottom: 0.75rem; }
+.inv-meta-row { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+.inv-meta-row:last-child { border-bottom: none; }
+.inv-meta-row .meta-label { color: var(--muted); font-weight: 500; min-width: 100px; }
+.inv-meta-row .meta-value { color: var(--text); cursor: pointer; padding: 0.15rem 0.4rem; border-radius: 3px; transition: background 0.15s; text-align: right; }
+.inv-meta-row .meta-value:hover { background: var(--bg); }
+.inv-meta-edit { background: var(--bg); border: 1px solid var(--accent); border-radius: 4px; padding: 0.2rem 0.5rem; color: var(--text); font-size: 0.85rem; font-family: inherit; outline: none; width: 140px; text-align: right; }
 </style>
 {% endblock %}
 
@@ -116,6 +130,40 @@
     </div>
     {% endif %}
 
+    <!-- Investigation Metadata Sidebar -->
+    <div style="display: flex; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 0;">
+            <!-- placeholder for flow, progress bar goes below -->
+        </div>
+        <div class="inv-meta-card" id="invMetaCard" style="width: 300px; flex-shrink: 0;">
+            <h3>Case Details</h3>
+            <div class="inv-meta-row">
+                <span class="meta-label">Created</span>
+                <span class="meta-value" style="cursor:default;">{{ investigation.created_at.strftime('%Y-%m-%d %H:%M') if investigation.created_at else 'N/A' }}</span>
+            </div>
+            <div class="inv-meta-row">
+                <span class="meta-label">Last Updated</span>
+                <span class="meta-value" style="cursor:default;">{{ investigation.updated_at.strftime('%Y-%m-%d %H:%M') if investigation.updated_at else 'N/A' }}</span>
+            </div>
+            <div class="inv-meta-row">
+                <span class="meta-label">Assigned To</span>
+                <span class="meta-value" id="metaAssigned" onclick="editMetaField('assigned_to', this)" title="Click to edit">{{ investigation.assigned_to or 'Unassigned' }}</span>
+            </div>
+            <div class="inv-meta-row">
+                <span class="meta-label">Priority</span>
+                <span class="meta-value" id="metaPriority" onclick="editMetaField('priority', this)" title="Click to edit">{{ investigation.priority or 'medium' }}</span>
+            </div>
+            <div class="inv-meta-row">
+                <span class="meta-label">Classification</span>
+                <span class="meta-value" id="metaClassification" onclick="editMetaField('classification', this)" title="Click to edit">{{ investigation.classification or 'unclassified' }}</span>
+            </div>
+            <div class="inv-meta-row">
+                <span class="meta-label">Tags</span>
+                <span class="meta-value" id="metaTags" onclick="editMetaField('tags', this)" title="Click to edit">{{ investigation.tags|join(', ') if investigation.tags else 'None' }}</span>
+            </div>
+        </div>
+    </div>
+
     <!-- Investigation Progress Bar -->
     <div class="card" id="invProgressCard" style="margin-bottom:1rem;padding:0.75rem 1rem;display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem;">
@@ -149,6 +197,7 @@
                 </div>
             </div>
         </div>
+        <button class="btn" onclick="exportInvestigation()">Export Case</button>
         <button class="btn btn-danger" onclick="deleteInvestigation()">Delete Case</button>
     </div>
 
@@ -167,7 +216,7 @@
     <!-- Tabbed interface -->
     <div class="tab-nav" id="mainTabNav">
         <button class="tab-btn active" onclick="switchMainTab('targets', this)">Targets</button>
-        <button class="tab-btn" onclick="switchMainTab('findings', this)">Findings</button>
+        <button class="tab-btn" id="findingsTabBtn" onclick="switchMainTab('findings', this)">Findings</button>
         <button class="tab-btn" onclick="switchMainTab('graph', this)">Graph</button>
         <button class="tab-btn" onclick="switchMainTab('timeline', this)">Timeline</button>
         <button class="tab-btn" onclick="switchMainTab('reports', this)">Reports</button>
@@ -190,6 +239,9 @@
             </div>
 
             {% if investigation.targets %}
+            <div style="margin-bottom: 1rem;">
+                <input type="text" class="target-search-input" id="targetSearchInput" placeholder="Search targets by name, email, phone, label..." oninput="filterTargetCards(this.value)">
+            </div>
             <div class="target-grid" id="targetGrid">
                 {% for target in investigation.targets %}
                 <div class="card target-card {% if investigation.targets|length > 5 %}target-compact{% endif %}" id="target-{{ target.id }}" data-target-id="{{ target.id }}">
@@ -1311,8 +1363,259 @@ async function runCategoryAll(category) {
 // ── Patched loadModulePills to also build category badges ───────
 var _origLoadModulePills = loadModulePills;
 
+// ── 1. Target Search Filter ────────────────────────────────────
+function filterTargetCards(query) {
+    var q = query.toLowerCase().trim();
+    var cards = document.querySelectorAll('#targetGrid .target-card');
+    cards.forEach(function(card) {
+        if (!q) { card.style.display = ''; return; }
+        var text = card.textContent.toLowerCase();
+        card.style.display = text.indexOf(q) !== -1 ? '' : 'none';
+    });
+}
+
+// ── 2. Findings Count in Tab Label ─────────────────────────────
+async function updateFindingsTabCount() {
+    var totalFindings = 0;
+    for (var i = 0; i < TARGET_IDS.length; i++) {
+        try {
+            var resp = await fetch(BASE + '/api/findings/?target_id=' + TARGET_IDS[i]);
+            var findings = await resp.json();
+            totalFindings += findings.length;
+        } catch(e) { /* skip */ }
+    }
+    var btn = document.getElementById('findingsTabBtn');
+    if (btn) btn.textContent = 'Findings (' + totalFindings + ')';
+    return totalFindings;
+}
+
+// ── 3. Auto-refresh after module run ───────────────────────────
+function refreshAfterModuleRun() {
+    // Refresh findings count in tab
+    updateFindingsTabCount();
+    // Refresh target card stats without full page reload
+    TARGET_IDS.forEach(function(tid) {
+        fetch(BASE + '/api/findings/?target_id=' + tid).then(function(r) { return r.json(); }).then(function(findings) {
+            var card = document.getElementById('target-' + tid);
+            if (!card) return;
+            var statsEl = card.querySelector('.target-stats');
+            if (statsEl) {
+                var spans = statsEl.querySelectorAll('span');
+                if (spans[0]) spans[0].textContent = findings.length + ' findings';
+            }
+        }).catch(function() {});
+        fetch(BASE + '/api/targets/' + tid + '/run-status').then(function(r) { return r.json(); }).then(function(runs) {
+            var card = document.getElementById('target-' + tid);
+            if (!card) return;
+            var statsEl = card.querySelector('.target-stats');
+            if (statsEl) {
+                var spans = statsEl.querySelectorAll('span');
+                if (spans[1]) spans[1].textContent = runs.length + ' runs';
+            }
+        }).catch(function() {});
+    });
+    // Also reload findings data if already loaded
+    if (findingsLoaded) { loadAllFindings(); }
+}
+
+// Patch runSingleModule to auto-refresh
+var _origRunSingleModule = runSingleModule;
+runSingleModule = async function(targetId, moduleName, pill) {
+    await _origRunSingleModule(targetId, moduleName, pill);
+    refreshAfterModuleRun();
+};
+
+// Patch runAllModules to auto-refresh instead of full reload
+var _origRunAllModules = runAllModules;
+runAllModules = async function(targetId, btn) {
+    btn.disabled = true;
+    btn.textContent = 'Running...';
+    document.querySelectorAll('#modules-' + targetId + ' .module-pill').forEach(function(p) { p.classList.add('running'); });
+    try {
+        var resp = await fetch(BASE + '/api/targets/' + targetId + '/run', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({})
+        });
+        if (resp.ok) {
+            var result = await resp.json();
+            showToast(result.total_findings + ' findings from ' + result.modules_run.length + ' modules');
+            document.querySelectorAll('#modules-' + targetId + ' .module-pill').forEach(function(p) {
+                p.classList.remove('running');
+                p.classList.add('done');
+            });
+            btn.disabled = false;
+            btn.textContent = 'Run All';
+            refreshAfterModuleRun();
+        } else {
+            showToast('Module run failed', 'error');
+            btn.disabled = false; btn.textContent = 'Run All';
+        }
+    } catch(e) {
+        showToast('Network error', 'error');
+        btn.disabled = false; btn.textContent = 'Run All';
+    }
+};
+
+// Patch bulkRunAll to auto-refresh
+var _origBulkRunAll = bulkRunAll;
+bulkRunAll = async function(btn) {
+    if (!confirm('Run all modules on ALL targets? This may take a while.')) return;
+    btn.disabled = true;
+    btn.textContent = 'Running...';
+    var panel = document.getElementById('progressPanel');
+    var content = document.getElementById('progressContent');
+    panel.style.display = 'block';
+    content.replaceChildren();
+    TARGET_IDS.forEach(function(tid) {
+        var row = el('div', {class: 'progress-target', id: 'prog-' + tid});
+        var label = el('div', {class: 'prog-label', text: TARGET_LABELS[tid] || tid});
+        var barWrap = el('div', {class: 'prog-bar'});
+        var barFill = el('div', {class: 'prog-bar-fill', style: 'width: 0%;', id: 'progbar-' + tid});
+        barWrap.appendChild(barFill);
+        var txt = el('div', {class: 'prog-text', text: 'Pending...', id: 'progtxt-' + tid});
+        row.appendChild(label); row.appendChild(barWrap); row.appendChild(txt);
+        content.appendChild(row);
+    });
+    try {
+        var resp = await fetch(BASE + '/api/investigations/' + INV_ID + '/run-all', { method: 'POST' });
+        if (resp.ok) {
+            var result = await resp.json();
+            showToast(result.total_findings + ' findings from ' + result.targets_processed + ' targets');
+        } else {
+            showToast('Bulk run failed', 'error');
+            btn.disabled = false; btn.textContent = 'Run All Targets';
+            panel.style.display = 'none';
+            return;
+        }
+    } catch(e) {
+        showToast('Network error', 'error');
+        btn.disabled = false; btn.textContent = 'Run All Targets';
+        panel.style.display = 'none';
+        return;
+    }
+    var pollInterval = setInterval(async function() {
+        var completed = 0;
+        for (var k = 0; k < TARGET_IDS.length; k++) {
+            var tid = TARGET_IDS[k];
+            try {
+                var r2 = await fetch(BASE + '/api/targets/' + tid + '/run-status');
+                var runs = await r2.json();
+                var total = runs.length || 1;
+                var done = runs.filter(function(r) { return r.status === 'completed' || r.status === 'failed'; }).length;
+                var pct = Math.round((done / total) * 100);
+                var bar = document.getElementById('progbar-' + tid);
+                var txt = document.getElementById('progtxt-' + tid);
+                if (bar) bar.style.width = pct + '%';
+                if (txt) txt.textContent = done + '/' + total + ' modules';
+                if (done >= total) completed++;
+            } catch(e2) { completed++; }
+        }
+        if (completed >= TARGET_IDS.length) {
+            clearInterval(pollInterval);
+            btn.disabled = false;
+            btn.textContent = 'Run All Targets';
+            showToast('All targets complete.');
+            refreshAfterModuleRun();
+        }
+    }, 2000);
+};
+
+// ── 4. Investigation Metadata Click-to-Edit ────────────────────
+function editMetaField(field, spanEl) {
+    var currentVal = spanEl.textContent.trim();
+    if (currentVal === 'Unassigned' || currentVal === 'None') currentVal = '';
+
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'inv-meta-edit';
+    input.value = currentVal;
+    spanEl.replaceWith(input);
+    input.focus();
+    input.select();
+
+    var saving = false;
+    function finishEdit(save) {
+        if (saving) return;
+        saving = true;
+        var newVal = input.value.trim();
+        var newSpan = document.createElement('span');
+        newSpan.className = 'meta-value';
+        newSpan.id = spanEl.id;
+        newSpan.title = 'Click to edit';
+        newSpan.onclick = function() { editMetaField(field, newSpan); };
+
+        if (save && newVal !== currentVal) {
+            var body = {};
+            if (field === 'tags') {
+                body[field] = newVal ? newVal.split(',').map(function(t) { return t.trim(); }) : [];
+            } else {
+                body[field] = newVal || null;
+            }
+            fetch(BASE + '/api/investigations/' + INV_ID, {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body)
+            }).then(function(resp) {
+                if (resp.ok) {
+                    newSpan.textContent = newVal || (field === 'assigned_to' ? 'Unassigned' : field === 'tags' ? 'None' : newVal);
+                    showToast(field.replace(/_/g, ' ') + ' updated');
+                } else {
+                    newSpan.textContent = currentVal || (field === 'assigned_to' ? 'Unassigned' : field === 'tags' ? 'None' : currentVal);
+                    showToast('Failed to update', 'error');
+                }
+            }).catch(function() {
+                newSpan.textContent = currentVal || (field === 'assigned_to' ? 'Unassigned' : field === 'tags' ? 'None' : currentVal);
+                showToast('Network error', 'error');
+            });
+        } else {
+            newSpan.textContent = currentVal || (field === 'assigned_to' ? 'Unassigned' : field === 'tags' ? 'None' : currentVal);
+        }
+        input.replaceWith(newSpan);
+    }
+
+    input.addEventListener('keydown', function(ev) {
+        if (ev.key === 'Enter') finishEdit(true);
+        if (ev.key === 'Escape') finishEdit(false);
+    });
+    input.addEventListener('blur', function() { finishEdit(true); });
+}
+
+// ── 5. Export Investigation as JSON ────────────────────────────
+async function exportInvestigation() {
+    showToast('Preparing export...');
+    var exportData = {
+        case_number: "{{ investigation.case_number }}",
+        title: "{{ investigation.title }}",
+        status: "{{ investigation.status }}",
+        priority: "{{ investigation.priority }}",
+        classification: "{{ investigation.classification }}",
+        targets: []
+    };
+
+    for (var i = 0; i < TARGET_IDS.length; i++) {
+        var tid = TARGET_IDS[i];
+        var targetData = { id: tid, label: TARGET_LABELS[tid] || tid, findings: [] };
+        try {
+            var resp = await fetch(BASE + '/api/findings/?target_id=' + tid);
+            targetData.findings = await resp.json();
+        } catch(e) { /* skip */ }
+        exportData.targets.push(targetData);
+    }
+
+    var blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = '{{ investigation.case_number }}.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Case exported');
+}
+
 // ── Init ─────────────────────────────────────────────────────────
 loadModulePills();
 updateInvestigationProgress();
+updateFindingsTabCount();
 </script>
 {% endblock %}

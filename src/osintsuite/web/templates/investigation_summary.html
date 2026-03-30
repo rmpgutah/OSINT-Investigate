@@ -45,6 +45,35 @@
 .share-btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.9rem; border: 1px solid var(--border); border-radius: var(--r); background: var(--card); color: var(--dim); cursor: pointer; font-size: 0.82rem; font-family: inherit; transition: all 0.15s; }
 .share-btn:hover { border-color: var(--accent); color: var(--accent); }
 
+/* Chart export button */
+.chart-card { position: relative; }
+.chart-export-btn { position: absolute; top: 0.75rem; right: 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--dim); cursor: pointer; padding: 0.3rem 0.45rem; font-size: 0.75rem; line-height: 1; transition: all 0.15s; }
+.chart-export-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Module performance table */
+.perf-table { width: 100%; border-collapse: collapse; }
+.perf-table th, .perf-table td { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+.perf-table th { color: var(--dim); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; font-weight: 600; }
+.perf-table td { color: var(--fg); }
+
+/* Investigation timeline */
+.inv-timeline { display: flex; align-items: flex-start; overflow-x: auto; padding: 1.5rem 0 1rem; gap: 0; position: relative; }
+.inv-timeline::before { content: ''; position: absolute; top: 2.05rem; left: 0; right: 0; height: 3px; background: var(--border); z-index: 0; }
+.tl-event { display: flex; flex-direction: column; align-items: center; min-width: 120px; flex-shrink: 0; position: relative; z-index: 1; }
+.tl-dot { width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--card); background: var(--accent); flex-shrink: 0; }
+.tl-dot.dot-create { background: #3b82f6; }
+.tl-dot.dot-target { background: #22c55e; }
+.tl-dot.dot-module { background: #a855f7; }
+.tl-dot.dot-flag { background: #f59e0b; }
+.tl-label { margin-top: 0.5rem; font-size: 0.75rem; color: var(--dim); text-align: center; max-width: 110px; line-height: 1.3; }
+.tl-date { font-size: 0.65rem; color: var(--muted); margin-top: 0.15rem; }
+
+/* Refresh button */
+.refresh-btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.9rem; border: 1px solid var(--border); border-radius: var(--r); background: var(--card); color: var(--dim); cursor: pointer; font-size: 0.82rem; font-family: inherit; transition: all 0.15s; }
+.refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+.refresh-btn.spinning svg { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
 @media print {
     .navbar, .sidebar, .footer, .fab, .btn, .toast, .cmd-palette-overlay, .share-btn { display: none !important; }
     .main-content { margin-left: 0 !important; padding: 0 !important; }
@@ -89,6 +118,7 @@
         <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem;">
             <div style="display: flex; gap: 0.5rem;">
                 <button class="share-btn" onclick="copyShareLink(this)">&#128279; Copy Link</button>
+                <button class="refresh-btn" id="refreshBtn" onclick="refreshSummaryData(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg> Refresh Data</button>
                 <button class="btn" onclick="window.print()">Export PDF</button>
             </div>
             <span class="badge badge-{{ investigation.status }}" style="font-size: 0.85rem; padding: 0.3rem 0.9rem;">{{ investigation.status }}</span>
@@ -168,17 +198,35 @@
     <div class="chart-grid">
         <div class="chart-card">
             <h3>Findings per Module</h3>
+            <button class="chart-export-btn" onclick="exportChart('moduleChart', 'findings-per-module')" title="Download as PNG">&#11015; PNG</button>
             <canvas id="moduleChart"></canvas>
         </div>
         <div class="chart-card">
             <h3>Confidence Distribution</h3>
+            <button class="chart-export-btn" onclick="exportChart('confidenceChart', 'confidence-distribution')" title="Download as PNG">&#11015; PNG</button>
             <canvas id="confidenceChart"></canvas>
         </div>
     </div>
 
-    <div class="card" style="margin-bottom: 2rem;">
+    <div class="card" style="margin-bottom: 2rem; position: relative;">
         <h3>Findings Over Time</h3>
+        <button class="chart-export-btn" onclick="exportChart('timelineChart', 'findings-over-time')" title="Download as PNG">&#11015; PNG</button>
         <canvas id="timelineChart" style="max-height: 250px;"></canvas>
+    </div>
+
+    {# Finding type distribution chart #}
+    <div class="chart-card" style="margin-bottom: 2rem;">
+        <h3>Finding Type Distribution</h3>
+        <button class="chart-export-btn" onclick="exportChart('findingTypeChart', 'finding-type-distribution')" title="Download as PNG">&#11015; PNG</button>
+        <canvas id="findingTypeChart" style="max-height: 350px;"></canvas>
+    </div>
+
+    {# Module performance metrics table #}
+    <div class="card" style="margin-bottom: 2rem;">
+        <h3>Module Performance Metrics</h3>
+        <div id="modulePerfContainer">
+            <div style="color: var(--muted); font-size: 0.85rem; text-align: center; padding: 1rem;">Loading performance data...</div>
+        </div>
     </div>
 
     {# Module coverage chart #}
@@ -267,6 +315,14 @@
         <div id="summaryMap"></div>
         <p id="mapEmpty" style="display: none; color: var(--muted); text-align: center; padding: 1.5rem;">No geolocated findings available.</p>
     </div>
+
+    {# Investigation Timeline #}
+    <div class="card" style="margin-bottom: 2rem;">
+        <h3>Investigation Timeline</h3>
+        <div class="inv-timeline" id="investigationTimeline">
+            <div style="color: var(--muted); font-size: 0.85rem; text-align: center; padding: 1rem; width: 100%;">Loading timeline...</div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -290,6 +346,19 @@ async function loadSummaryData() {
         renderConfidenceChart(data.findings_by_confidence);
         renderTimelineChart(data.findings_over_time);
         renderTargetComparison(data.target_comparison);
+        renderFindingTypeChart(data.findings_by_source || data.findings_by_module);
+
+        // Update stat numbers on refresh
+        if (data.target_comparison) {
+            var totalF = 0, flaggedF = 0;
+            data.target_comparison.forEach(function(t) { totalF += t.findings_count || 0; flaggedF += t.flagged_count || 0; });
+            var statFindings = document.getElementById('statFindings');
+            var statFlagged = document.getElementById('statFlagged');
+            var statTargets = document.getElementById('statTargets');
+            if (statFindings) statFindings.textContent = totalF;
+            if (statFlagged) statFlagged.textContent = flaggedF;
+            if (statTargets) statTargets.textContent = data.target_comparison.length;
+        }
     } catch (e) {
         showToast('Failed to load summary data', 'error');
     }
@@ -300,7 +369,7 @@ function renderModuleChart(byModule) {
     const values = Object.values(byModule);
     const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', '#f97316', '#ec4899', '#14b8a6', '#8b5cf6'];
 
-    new Chart(document.getElementById('moduleChart'), {
+    chartInstances['moduleChart'] = new Chart(document.getElementById('moduleChart'), {
         type: 'bar',
         data: {
             labels: labels,
@@ -328,7 +397,7 @@ function renderModuleChart(byModule) {
 }
 
 function renderConfidenceChart(byConf) {
-    new Chart(document.getElementById('confidenceChart'), {
+    chartInstances['confidenceChart'] = new Chart(document.getElementById('confidenceChart'), {
         type: 'doughnut',
         data: {
             labels: ['High (>70%)', 'Medium (41-70%)', 'Low (0-40%)'],
@@ -354,7 +423,7 @@ function renderTimelineChart(overTime) {
     var labels = overTime.map(function(d) { return d.date; });
     var values = overTime.map(function(d) { return d.count; });
 
-    new Chart(document.getElementById('timelineChart'), {
+    chartInstances['timelineChart'] = new Chart(document.getElementById('timelineChart'), {
         type: 'line',
         data: {
             labels: labels,
@@ -595,9 +664,207 @@ function copyShareLink(btn) {
     });
 }
 
+// ── Chart instances registry (for export and refresh) ──────────────
+var chartInstances = {};
+
+// ── Export chart as PNG ─────────────────────────────────────────────
+function exportChart(canvasId, filename) {
+    var inst = chartInstances[canvasId];
+    if (!inst) { showToast('Chart not ready', 'error'); return; }
+    var url = inst.toBase64Image();
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = (filename || canvasId) + '.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+// ── Refresh summary data without full page reload ──────────────────
+async function refreshSummaryData(btn) {
+    if (btn) btn.classList.add('spinning');
+    try {
+        // Destroy existing chart instances
+        Object.keys(chartInstances).forEach(function(key) {
+            if (chartInstances[key]) { chartInstances[key].destroy(); delete chartInstances[key]; }
+        });
+        await loadSummaryData();
+        await loadCoverageChart();
+        await loadModulePerformance();
+        showToast('Summary data refreshed');
+    } catch (e) {
+        showToast('Failed to refresh data', 'error');
+    } finally {
+        if (btn) btn.classList.remove('spinning');
+    }
+}
+
+// ── Finding type distribution chart ─────────────────────────────────
+function renderFindingTypeChart(byModule) {
+    // byModule is findings_by_module — we re-use it as a proxy for finding types
+    // We'll also fetch finding_type breakdown from stats
+    var canvas = document.getElementById('findingTypeChart');
+    if (!canvas) return;
+
+    // Sort by count descending
+    var entries = Object.entries(byModule).sort(function(a, b) { return b[1] - a[1]; });
+    var labels = entries.map(function(e) { return e[0].replace(/_/g, ' '); });
+    var values = entries.map(function(e) { return e[1]; });
+    var colors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', '#f97316', '#ec4899', '#14b8a6', '#8b5cf6',
+                  '#64748b', '#0ea5e9', '#d946ef', '#84cc16', '#f43f5e'];
+
+    chartInstances['findingTypeChart'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Count',
+                data: values,
+                backgroundColor: values.map(function(_, i) { return colors[i % colors.length]; }),
+                borderRadius: 4,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { backgroundColor: '#1e2230', titleColor: '#e2e8f0', bodyColor: '#9ca3b0', borderColor: '#2d3343', borderWidth: 1 }
+            },
+            scales: {
+                x: { beginAtZero: true, ticks: { precision: 0, color: '#9ca3b0' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: { grid: { display: false }, ticks: { color: '#9ca3b0', font: { size: 11 } } }
+            }
+        }
+    });
+}
+
+// ── Module performance metrics ──────────────────────────────────────
+async function loadModulePerformance() {
+    var container = document.getElementById('modulePerfContainer');
+    if (!container) return;
+
+    try {
+        var resp = await fetch(BASE + '/api/modules/performance/' + INV_ID);
+        if (!resp.ok) throw new Error('Failed');
+        var data = await resp.json();
+
+        container.replaceChildren();
+
+        if (!data.length) {
+            container.appendChild(el('div', {text: 'No module runs recorded yet.', style: 'color: var(--muted); font-size: 0.85rem; text-align: center; padding: 1rem;'}));
+            return;
+        }
+
+        var table = document.createElement('table');
+        table.className = 'perf-table';
+
+        var thead = document.createElement('thead');
+        var headRow = document.createElement('tr');
+        ['Module Name', 'Findings', 'Runs', 'Avg Duration', 'Last Run'].forEach(function(h) {
+            headRow.appendChild(el('th', {text: h}));
+        });
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+
+        var tbody = document.createElement('tbody');
+        data.forEach(function(m) {
+            var row = document.createElement('tr');
+            row.appendChild(el('td', {text: m.module_name.replace(/_/g, ' '), style: 'font-weight: 600; text-transform: capitalize;'}));
+            row.appendChild(el('td', {text: String(m.total_findings)}));
+            row.appendChild(el('td', {text: String(m.total_runs), style: 'color: var(--dim);'}));
+
+            var durText = m.avg_duration !== null ? m.avg_duration + 's' : '\u2014';
+            row.appendChild(el('td', {text: durText, style: 'color: var(--dim);'}));
+
+            var lastText = m.last_run ? new Date(m.last_run).toLocaleString() : '\u2014';
+            row.appendChild(el('td', {text: lastText, style: 'color: var(--dim); font-size: 0.8rem;'}));
+
+            tbody.appendChild(row);
+        });
+        table.appendChild(tbody);
+        container.appendChild(table);
+    } catch(e) {
+        container.replaceChildren();
+        container.appendChild(el('div', {text: 'Failed to load performance data.', style: 'color: var(--muted); font-size: 0.85rem; text-align: center; padding: 1rem;'}));
+    }
+}
+
+// ── Investigation timeline ──────────────────────────────────────────
+async function loadInvestigationTimeline() {
+    var container = document.getElementById('investigationTimeline');
+    if (!container) return;
+
+    try {
+        // Build timeline events from available data
+        var events = [];
+
+        // Case created
+        var caseCreated = "{{ investigation.created_at.strftime('%Y-%m-%dT%H:%M:%S') if investigation.created_at else '' }}";
+        if (caseCreated) {
+            events.push({ date: new Date(caseCreated), label: 'Case Created', type: 'create' });
+        }
+
+        // Fetch targets and module runs to build events
+        var statsResp = await fetch(BASE + '/api/modules/stats/' + INV_ID);
+        if (statsResp.ok) {
+            var stats = await statsResp.json();
+            // Use findings_over_time for module run events
+            if (stats.findings_over_time && stats.findings_over_time.length) {
+                stats.findings_over_time.forEach(function(d) {
+                    events.push({ date: new Date(d.date), label: d.count + ' findings', type: 'module' });
+                });
+            }
+            // Target additions
+            if (stats.target_comparison) {
+                stats.target_comparison.forEach(function(t, i) {
+                    // Stagger target events slightly after case creation
+                    var tDate = caseCreated ? new Date(new Date(caseCreated).getTime() + (i + 1) * 60000) : new Date();
+                    events.push({ date: tDate, label: 'Target: ' + t.target_label, type: 'target' });
+                });
+            }
+        }
+
+        // Sort by date
+        events.sort(function(a, b) { return a.date - b.date; });
+
+        container.replaceChildren();
+
+        if (!events.length) {
+            container.appendChild(el('div', {text: 'No timeline events.', style: 'color: var(--muted); font-size: 0.85rem; text-align: center; padding: 1rem; width: 100%;'}));
+            return;
+        }
+
+        events.forEach(function(ev) {
+            var eventDiv = document.createElement('div');
+            eventDiv.className = 'tl-event';
+
+            var dot = document.createElement('div');
+            dot.className = 'tl-dot dot-' + ev.type;
+            eventDiv.appendChild(dot);
+
+            var label = el('div', {class: 'tl-label', text: ev.label});
+            eventDiv.appendChild(label);
+
+            var dateStr = ev.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            var dateDiv = el('div', {class: 'tl-date', text: dateStr});
+            eventDiv.appendChild(dateDiv);
+
+            container.appendChild(eventDiv);
+        });
+    } catch(e) {
+        container.replaceChildren();
+        container.appendChild(el('div', {text: 'Failed to load timeline.', style: 'color: var(--muted); font-size: 0.85rem; text-align: center; padding: 1rem; width: 100%;'}));
+    }
+}
+
 // ── Init ─────────────────────────────────────────────────────────────
 loadSummaryData();
 loadMapData();
 loadCoverageChart();
+loadModulePerformance();
+loadInvestigationTimeline();
 </script>
 {% endblock %}

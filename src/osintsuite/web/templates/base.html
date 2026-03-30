@@ -447,6 +447,53 @@
     /* ── 10. Progress bar component ───────────────────────────────── */
     .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
     .progress-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s ease; }
+
+    /* ── Breadcrumb trail ─────────────────────────────────────────── */
+    .breadcrumb-trail { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: var(--muted); margin-bottom: 1rem; }
+    .breadcrumb-trail a { color: var(--dim); }
+    .breadcrumb-trail .bc-sep { font-size: 0.7rem; }
+    .breadcrumb-trail .bc-current { color: var(--text); font-weight: 500; }
+
+    /* ── Keyboard shortcut indicator ──────────────────────────────── */
+    .kbd { display: inline-block; padding: 0.1rem 0.4rem; background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; font-size: 0.7rem; font-family: monospace; color: var(--muted); line-height: 1.4; }
+
+    /* ── Collapsible sections ─────────────────────────────────────── */
+    .collapsible-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+    .collapsible-header .chevron { transition: transform 0.2s; }
+    .collapsible-header.collapsed .chevron { transform: rotate(-90deg); }
+    .collapsible-body { overflow: hidden; transition: max-height 0.3s ease; }
+
+    /* ── Drag handle ──────────────────────────────────────────────── */
+    .drag-handle { cursor: grab; color: var(--muted); font-size: 1rem; padding: 0 0.3rem; }
+    .drag-handle:active { cursor: grabbing; }
+
+    /* ── Sidebar recent cases ─────────────────────────────────────── */
+    .sidebar-recent-case { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 1.25rem; font-size: 0.82rem; color: var(--dim); text-decoration: none; transition: all 0.15s; }
+    .sidebar-recent-case:hover { color: var(--text); background: var(--hover); text-decoration: none; }
+    .sidebar-recent-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .sidebar-recent-dot.dot-open { background: var(--green); }
+    .sidebar-recent-dot.dot-active { background: var(--yellow); }
+    .sidebar-recent-dot.dot-closed { background: var(--muted); }
+    .sidebar-recent-dot.dot-archived { background: #6366f1; }
+
+    /* ── Online indicator ─────────────────────────────────────────── */
+    .online-indicator { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: var(--muted); padding: 0.5rem 1.25rem; }
+    .online-indicator .online-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+    /* ── Notification group headers ────────────────────────────────── */
+    .notif-group-header { padding: 0.4rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; background: var(--bg2); border-bottom: 1px solid var(--border); }
+    .notif-footer { padding: 0.5rem 1rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .notif-footer a, .notif-footer button { font-size: 0.78rem; }
+
+    /* ── Recent findings ticker ────────────────────────────────────── */
+    .findings-ticker { overflow: hidden; position: relative; padding: 0.5rem 0; margin-bottom: 1.5rem; }
+    .findings-ticker-track { display: flex; gap: 1rem; animation: tickerScroll 30s linear infinite; white-space: nowrap; }
+    .findings-ticker-track:hover { animation-play-state: paused; }
+    .ticker-item { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.8rem; background: var(--card); border: 1px solid var(--border); border-radius: var(--r); font-size: 0.8rem; flex-shrink: 0; }
+    .ticker-item .ticker-case { background: var(--accent); color: #fff; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+    .ticker-item .ticker-module { color: var(--muted); font-size: 0.72rem; }
+    .ticker-item .ticker-title { color: var(--text); max-width: 250px; overflow: hidden; text-overflow: ellipsis; }
+    @keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -472,6 +519,9 @@
         </nav>
         <div id="moduleCountBadge" class="module-count-badge" style="display:none;"></div>
         <div class="sidebar-footer">
+            <div class="online-indicator">
+                <span class="online-dot"></span> 1 analyst online
+            </div>
             <button class="theme-toggle" id="themeToggle" title="Toggle light/dark theme" onclick="toggleTheme()" style="width:100%;justify-content:center;">
                 <span id="themeIcon">&#9788;</span> <span style="font-size:0.82rem;">Toggle Theme</span>
             </button>
@@ -501,10 +551,14 @@
                     </button>
                     <div class="notif-dropdown" id="notifDropdown">
                         <div class="notif-header">
-                            <span>Activity</span>
-                            <button class="btn btn-sm" style="padding:0.15rem 0.4rem;font-size:0.72rem;" onclick="loadNotifications()">Refresh</button>
+                            <span>Notifications</span>
+                            <button class="btn btn-sm" style="padding:0.15rem 0.4rem;font-size:0.72rem;" onclick="markAllNotifRead()">Mark all read</button>
                         </div>
                         <div id="notifList"></div>
+                        <div class="notif-footer">
+                            <a href="{{ request.scope.get('root_path', '') }}/" style="color:var(--accent);font-size:0.78rem;text-decoration:none;">View all activity</a>
+                            <button class="btn btn-sm" style="padding:0.15rem 0.4rem;font-size:0.72rem;" onclick="loadNotifications()">Refresh</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -550,7 +604,8 @@
             <h3>Keyboard Shortcuts</h3>
             <div class="kb-row"><span>Open command palette</span><kbd>Ctrl+K</kbd></div>
             <div class="kb-row"><span>Focus search</span><kbd>/</kbd></div>
-            <div class="kb-row"><span>New case (dashboard)</span><kbd>N</kbd></div>
+            <div class="kb-row"><span>New case (dashboard)</span><kbd>N</kbd> or <kbd>C</kbd></div>
+            <div class="kb-row"><span>Filter: All / Open / Active / Closed</span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></div>
             <div class="kb-row"><span>Toggle flag (hover finding)</span><kbd>F</kbd></div>
             <div class="kb-row"><span>Close modal / palette</span><kbd>Esc</kbd></div>
             <div class="kb-row"><span>Show this help</span><kbd>?</kbd></div>
@@ -626,7 +681,7 @@
         ov.classList.toggle('active');
     }
 
-    // ── Load sidebar investigations list ─────────────────────────────
+    // ── Load sidebar investigations list (recent 5 with status dots) ──
     (function() {
         fetch(BASE + '/api/investigations/').then(function(r){ return r.json(); }).then(function(data) {
             var list = Array.isArray(data) ? data : [];
@@ -634,9 +689,14 @@
             var header = document.getElementById('sidebarInvHeader');
             var container = document.getElementById('sidebarInvList');
             if (header) header.style.display = '';
-            list.slice(0, 10).forEach(function(inv) {
-                var a = el('a', {href: BASE + '/investigation/' + inv.case_number});
-                a.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> ';
+            // Sort by created_at descending and take 5 most recent
+            list.sort(function(a, b) {
+                return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+            });
+            list.slice(0, 5).forEach(function(inv) {
+                var a = el('a', {href: BASE + '/investigation/' + inv.case_number, class: 'sidebar-recent-case'});
+                var dot = el('span', {class: 'sidebar-recent-dot dot-' + (inv.status || 'open')});
+                a.appendChild(dot);
                 a.appendChild(document.createTextNode(inv.case_number));
                 container.appendChild(a);
             });
@@ -661,16 +721,61 @@
                 return;
             }
             badge.classList.add('has-items');
+
+            // Group notifications by action type
+            var groups = {};
+            var groupLabels = {module_run: 'Module Runs', status_change: 'Status Changes', created: 'Created', updated: 'Updates', deleted: 'Deleted'};
             items.forEach(function(item) {
-                var div = el('div', {class: 'notif-item'});
-                var action = el('span', {class: 'notif-action', text: item.action.replace('_', ' ')});
-                div.appendChild(action);
-                div.appendChild(document.createTextNode(' ' + item.entity_type + ' '));
-                var time = el('div', {class: 'notif-time', text: item.relative_time});
-                div.appendChild(time);
-                list.appendChild(div);
+                var key = item.action || 'other';
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(item);
+            });
+
+            // Render grouped
+            var groupOrder = ['module_run', 'status_change', 'created', 'updated', 'deleted'];
+            groupOrder.forEach(function(key) {
+                if (!groups[key] || !groups[key].length) return;
+                var header = el('div', {class: 'notif-group-header', text: groupLabels[key] || key.replace('_', ' ')});
+                list.appendChild(header);
+                groups[key].forEach(function(item) {
+                    var div = el('div', {class: 'notif-item'});
+                    var action = el('span', {class: 'notif-action', text: item.action.replace('_', ' ')});
+                    div.appendChild(action);
+                    div.appendChild(document.createTextNode(' ' + item.entity_type + ' '));
+                    if (item.details && item.details.title) {
+                        div.appendChild(document.createTextNode('- ' + item.details.title + ' '));
+                    }
+                    var time = el('div', {class: 'notif-time', text: item.relative_time});
+                    div.appendChild(time);
+                    list.appendChild(div);
+                });
+            });
+
+            // Render any ungrouped types
+            Object.keys(groups).forEach(function(key) {
+                if (groupOrder.indexOf(key) !== -1) return;
+                var header = el('div', {class: 'notif-group-header', text: key.replace('_', ' ')});
+                list.appendChild(header);
+                groups[key].forEach(function(item) {
+                    var div = el('div', {class: 'notif-item'});
+                    var action = el('span', {class: 'notif-action', text: item.action.replace('_', ' ')});
+                    div.appendChild(action);
+                    div.appendChild(document.createTextNode(' ' + item.entity_type + ' '));
+                    var time = el('div', {class: 'notif-time', text: item.relative_time});
+                    div.appendChild(time);
+                    list.appendChild(div);
+                });
             });
         }).catch(function(){});
+    }
+
+    function markAllNotifRead() {
+        var badge = document.getElementById('notifBadge');
+        badge.classList.remove('has-items');
+        var list = document.getElementById('notifList');
+        list.replaceChildren();
+        list.appendChild(el('div', {class: 'notif-empty', text: 'All caught up'}));
+        showToast('Notifications cleared', 'info');
     }
 
     // Close notification dropdown on outside click
@@ -997,6 +1102,33 @@
         }).catch(function() {
             showToast('Failed to copy', 'error');
         });
+    }
+
+    // ── Collapsible section toggle ───────────────────────────────────
+    function toggleCollapsible(headerEl) {
+        var body = headerEl.nextElementSibling;
+        if (!body) return;
+        headerEl.classList.toggle('collapsed');
+        if (headerEl.classList.contains('collapsed')) {
+            body.style.maxHeight = '0';
+        } else {
+            body.style.maxHeight = body.scrollHeight + 'px';
+        }
+    }
+
+    // ── Relative time utility ──────────────────────────────────────
+    function relativeTime(isoString) {
+        if (!isoString) return '';
+        var now = new Date();
+        var d = new Date(isoString);
+        var diff = Math.floor((now - d) / 1000);
+        if (diff < 0) return 'just now';
+        if (diff < 60) return 'just now';
+        if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+        if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+        if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+        if (diff < 2592000) return Math.floor(diff / 604800) + 'w ago';
+        return d.toLocaleDateString();
     }
 
     // ── 6. API status indicator ─────────────────────────────────────

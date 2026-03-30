@@ -4,42 +4,43 @@
 
 {% block content %}
 <div class="dashboard">
-    <h1 style="margin-bottom: 1.5rem;">Investigation Dashboard</h1>
+    <h1 style="margin-bottom: 0.25rem;">Investigation Dashboard</h1>
+    <p style="color:var(--dim);font-size:0.9rem;margin-bottom:1.5rem;" id="dashSubtitle">85 modules ready across {{ investigations|length }} active investigations</p>
 
     <div class="stats-grid">
-        <div class="stat-card" style="border-left: 4px solid var(--accent);">
+        <div class="stat-card" style="border-left: 4px solid var(--accent);cursor:pointer;" onclick="setStatusFilter('all', document.querySelector('.filter-pill[data-status=all]'))">
             <div style="display:flex;align-items:center;gap:0.75rem;">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
                 <div>
                     <div class="stat-number" data-count="{{ stats.total_cases }}">0</div>
-                    <div class="stat-label">Total Cases</div>
+                    <div class="stat-label">Total Cases <span class="kbd">1</span></div>
                 </div>
             </div>
         </div>
-        <div class="stat-card stat-open" style="border-left: 4px solid var(--green);">
+        <div class="stat-card stat-open" style="border-left: 4px solid var(--green);cursor:pointer;" onclick="setStatusFilter('open', document.querySelector('.filter-pill[data-status=open]'))">
             <div style="display:flex;align-items:center;gap:0.75rem;">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                 <div>
                     <div class="stat-number" data-count="{{ stats.open_cases }}">0</div>
-                    <div class="stat-label">Open</div>
+                    <div class="stat-label">Open <span class="kbd">2</span></div>
                 </div>
             </div>
         </div>
-        <div class="stat-card stat-active" style="border-left: 4px solid var(--yellow);">
+        <div class="stat-card stat-active" style="border-left: 4px solid var(--yellow);cursor:pointer;" onclick="setStatusFilter('active', document.querySelector('.filter-pill[data-status=active]'))">
             <div style="display:flex;align-items:center;gap:0.75rem;">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--yellow)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
                 <div>
                     <div class="stat-number" data-count="{{ stats.active_cases }}">0</div>
-                    <div class="stat-label">Active</div>
+                    <div class="stat-label">Active <span class="kbd">3</span></div>
                 </div>
             </div>
         </div>
-        <div class="stat-card stat-closed" style="border-left: 4px solid var(--muted);">
+        <div class="stat-card stat-closed" style="border-left: 4px solid var(--muted);cursor:pointer;" onclick="setStatusFilter('closed', document.querySelector('.filter-pill[data-status=closed]'))">
             <div style="display:flex;align-items:center;gap:0.75rem;">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                 <div>
                     <div class="stat-number" data-count="{{ stats.closed_cases }}">0</div>
-                    <div class="stat-label">Closed</div>
+                    <div class="stat-label">Closed <span class="kbd">4</span></div>
                 </div>
             </div>
         </div>
@@ -58,6 +59,11 @@
     <div class="section" id="activitySection" style="display:none;">
         <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:0.75rem;">Recent Activity</h2>
         <div class="activity-timeline" id="activityTimeline"></div>
+    </div>
+
+    <!-- Recent Findings Ticker -->
+    <div class="findings-ticker" id="findingsTickerSection" style="display:none;">
+        <div class="findings-ticker-track" id="findingsTickerTrack"></div>
     </div>
 
     <div class="section">
@@ -120,6 +126,7 @@
                     <th>Targets</th>
                     <th>Findings</th>
                     <th>Created</th>
+                    <th>Age</th>
                     <th></th>
                 </tr>
             </thead>
@@ -133,6 +140,7 @@
                     <td style="color: var(--dim);">{{ item.target_count }}</td>
                     <td style="color: var(--dim);">{{ item.finding_count }}</td>
                     <td style="color: var(--dim);">{{ item.inv.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td class="age-cell" data-created="{{ item.inv.created_at.isoformat() }}" style="color:var(--muted);font-size:0.82rem;"></td>
                     <td style="display: flex; gap: 0.4rem;">
                         <a href="{{ request.scope.get('root_path', '') }}/investigation/{{ item.inv.case_number }}" class="btn btn-sm">View</a>
                         <a href="{{ request.scope.get('root_path', '') }}/investigation/{{ item.inv.case_number }}/summary" class="btn btn-sm">Summary</a>
@@ -214,7 +222,81 @@ document.addEventListener('DOMContentLoaded', function() {
     makeTableSortable('invTable');
     // Load quick stats
     loadQuickStats();
+    // Compute age for each row
+    computeAgeCells();
+    // Load findings ticker
+    loadFindingsTicker();
+    // Update subtitle with actual module count
+    updateDashSubtitle();
 });
+
+// ── Compute age (days since creation) for table rows ────────────────
+function computeAgeCells() {
+    var now = new Date();
+    document.querySelectorAll('.age-cell[data-created]').forEach(function(td) {
+        var created = new Date(td.getAttribute('data-created'));
+        var days = Math.floor((now - created) / 86400000);
+        if (days === 0) td.textContent = 'today';
+        else if (days === 1) td.textContent = '1d';
+        else td.textContent = days + 'd';
+    });
+}
+
+// ── Update dashboard subtitle with real module count ────────────────
+function updateDashSubtitle() {
+    fetch(BASE + '/api/modules/').then(function(r) { return r.json(); }).then(function(data) {
+        var count = Array.isArray(data) ? data.length : (data.modules ? data.modules.length : 85);
+        var sub = document.getElementById('dashSubtitle');
+        if (sub) {
+            var invCount = sub.textContent.match(/(\d+) active/);
+            var invNum = invCount ? invCount[1] : '0';
+            sub.textContent = count + ' modules ready across ' + invNum + ' active investigations';
+        }
+    }).catch(function() {});
+}
+
+// ── Recent Findings Ticker ──────────────────────────────────────────
+function loadFindingsTicker() {
+    fetch(BASE + '/api/investigations/').then(function(r) { return r.json(); }).then(function(data) {
+        var list = Array.isArray(data) ? data : [];
+        var findings = [];
+        list.forEach(function(inv) {
+            if (!inv.targets) return;
+            inv.targets.forEach(function(t) {
+                if (!t.findings) return;
+                t.findings.forEach(function(f) {
+                    findings.push({
+                        case_number: inv.case_number,
+                        module: f.module_name || f.source_module || 'unknown',
+                        title: f.title || f.value || f.summary || 'Finding',
+                        created_at: f.created_at || inv.created_at
+                    });
+                });
+            });
+        });
+        if (!findings.length) return;
+
+        // Sort by most recent and take top 10
+        findings.sort(function(a, b) { return new Date(b.created_at || 0) - new Date(a.created_at || 0); });
+        findings = findings.slice(0, 10);
+
+        var section = document.getElementById('findingsTickerSection');
+        var track = document.getElementById('findingsTickerTrack');
+        if (!track) return;
+        section.style.display = '';
+
+        // Duplicate items for seamless loop
+        var allItems = findings.concat(findings);
+        allItems.forEach(function(f) {
+            var item = el('div', {class: 'ticker-item'});
+            item.appendChild(el('span', {class: 'ticker-case', text: f.case_number}));
+            item.appendChild(el('span', {class: 'ticker-module', text: f.module}));
+            var titleText = f.title.length > 40 ? f.title.substring(0, 40) + '...' : f.title;
+            item.appendChild(el('span', {class: 'ticker-title', text: titleText}));
+            track.appendChild(item);
+        });
+    }).catch(function() {});
+}
 
 // ── Relative time helper ────────────────────────────────────────────
 function relativeTime(dateStr) {
@@ -286,7 +368,12 @@ function filterTable() {
 function setStatusFilter(status, btn) {
     _activeStatusFilter = status;
     document.querySelectorAll('.filter-pill').forEach(function(p) { p.classList.remove('active'); });
-    btn.classList.add('active');
+    if (btn) {
+        btn.classList.add('active');
+    } else {
+        var pill = document.querySelector('.filter-pill[data-status="' + status + '"]');
+        if (pill) pill.classList.add('active');
+    }
     filterTable();
 }
 
@@ -479,5 +566,26 @@ function loadKanban() {
         });
     }).catch(function() { showToast('Failed to load kanban', 'error'); });
 }
+
+// ── Dashboard keyboard shortcuts ────────────────────────────────────
+document.addEventListener('keydown', function(e) {
+    var tag = (e.target.tagName || '').toLowerCase();
+    var isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable;
+    if (isInput || e.metaKey || e.ctrlKey || e.altKey) return;
+
+    // c = open create case modal (same as n)
+    if (e.key === 'c') {
+        var modal = document.getElementById('newCaseModal');
+        if (modal) { modal.style.display = 'flex'; return; }
+    }
+
+    // 1-4 = quick filter by status
+    var filterMap = {'1': 'all', '2': 'open', '3': 'active', '4': 'closed'};
+    if (filterMap[e.key]) {
+        e.preventDefault();
+        setStatusFilter(filterMap[e.key]);
+        return;
+    }
+});
 </script>
 {% endblock %}

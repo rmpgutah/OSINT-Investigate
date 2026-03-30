@@ -113,6 +113,32 @@ tr.reviewed { opacity: 0.6; }
 .mod-tile-red { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: #ef4444; }
 .mod-tile-gray { background: var(--bg); border-color: var(--border); color: var(--muted); cursor: pointer; }
 .mod-tile-gray:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Finding search input */
+.finding-search-input { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r); padding: 0.45rem 0.75rem; color: var(--text); font-size: 0.82rem; font-family: inherit; width: 100%; max-width: 300px; outline: none; }
+.finding-search-input:focus { border-color: var(--accent); }
+
+/* Sortable column headers */
+.sortable-th { cursor: pointer; user-select: none; white-space: nowrap; }
+.sortable-th:hover { color: var(--accent); }
+.sort-arrow { font-size: 0.7rem; margin-left: 0.25rem; opacity: 0.5; }
+.sort-arrow.active { opacity: 1; color: var(--accent); }
+
+/* Inline expand row for finding detail */
+.finding-expand-row td { padding: 0 !important; border-bottom: 1px solid var(--border); }
+.finding-expand-content { padding: 0.75rem 1.25rem; background: var(--bg); border-radius: 0 0 var(--r) var(--r); }
+.finding-expand-content table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.finding-expand-content td { padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.finding-expand-content td:first-child { color: var(--muted); font-weight: 500; white-space: nowrap; width: 30%; }
+.finding-expand-content td:last-child { color: var(--text); word-break: break-word; }
+
+/* Module run duration */
+.mod-tile-duration { font-size: 0.65rem; color: var(--dim); margin-top: 0.1rem; }
+
+/* Click-to-edit for target info */
+.info-item span.editable-value { cursor: pointer; padding: 0.1rem 0.3rem; border-radius: 3px; transition: background 0.15s; }
+.info-item span.editable-value:hover { background: var(--bg); }
+.target-edit-input { background: var(--bg); border: 1px solid var(--accent); border-radius: 4px; padding: 0.2rem 0.5rem; color: var(--text); font-size: 0.88rem; font-family: inherit; outline: none; width: 180px; }
 </style>
 {% endblock %}
 
@@ -146,24 +172,17 @@ tr.reviewed { opacity: 0.6; }
         <div class="card">
             <h3>Target Information</h3>
             <div class="info-grid">
-                {% if target.full_name %}
-                <div class="info-item"><strong>Full Name</strong><span>{{ target.full_name }}</span></div>
-                {% endif %}
-                {% if target.email %}
-                <div class="info-item"><strong>Email</strong><span>{{ target.email }}</span></div>
-                {% endif %}
-                {% if target.phone %}
-                <div class="info-item"><strong>Phone</strong><span>{{ target.phone }}</span></div>
-                {% endif %}
+                <div class="info-item"><strong>Full Name</strong><span class="editable-value" onclick="editTargetField('full_name', this)" title="Click to edit">{{ target.full_name or 'Not set' }}</span></div>
+                <div class="info-item"><strong>Email</strong><span class="editable-value" onclick="editTargetField('email', this)" title="Click to edit">{{ target.email or 'Not set' }}</span></div>
+                <div class="info-item"><strong>Phone</strong><span class="editable-value" onclick="editTargetField('phone', this)" title="Click to edit">{{ target.phone or 'Not set' }}</span></div>
                 {% if target.address %}
                 <div class="info-item"><strong>Address</strong><span>{{ target.address }}</span></div>
                 {% endif %}
                 {% if target.date_of_birth %}
                 <div class="info-item"><strong>Date of Birth</strong><span>{{ target.date_of_birth }}</span></div>
                 {% endif %}
-                {% if target.city %}
-                <div class="info-item"><strong>Location</strong><span>{{ target.city }}{% if target.state %}, {{ target.state }}{% endif %}</span></div>
-                {% endif %}
+                <div class="info-item"><strong>City</strong><span class="editable-value" onclick="editTargetField('city', this)" title="Click to edit">{{ target.city or 'Not set' }}</span></div>
+                <div class="info-item"><strong>State</strong><span class="editable-value" onclick="editTargetField('state', this)" title="Click to edit">{{ target.state or 'Not set' }}</span></div>
             </div>
         </div>
 
@@ -262,6 +281,11 @@ tr.reviewed { opacity: 0.6; }
             <button onclick="clearBulkSelection()" style="background:rgba(255,255,255,0.1);">Clear</button>
         </div>
 
+        <!-- Finding search -->
+        <div style="margin-bottom: 0.75rem;">
+            <input type="text" class="finding-search-input" id="findingSearchInput" placeholder="Search findings by title, content, source, module..." oninput="applyFilters()">
+        </div>
+
         <!-- Filter pills (module filter) -->
         <div class="filter-pills" id="filterPills">
             {% for module_name in findings_by_module %}
@@ -311,12 +335,12 @@ tr.reviewed { opacity: 0.6; }
                     <tr>
                         <th style="width: 2rem;"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all"></th>
                         <th style="width: 3rem;"></th>
-                        <th>Module</th>
-                        <th>Source</th>
-                        <th>Title</th>
-                        <th>Confidence</th>
-                        <th>Date</th>
-                        <th style="width: 3rem;"></th>
+                        <th class="sortable-th" onclick="sortFindings('module', this)">Module <span class="sort-arrow" data-col="module"></span></th>
+                        <th class="sortable-th" onclick="sortFindings('source', this)">Source <span class="sort-arrow" data-col="source"></span></th>
+                        <th class="sortable-th" onclick="sortFindings('title', this)">Title <span class="sort-arrow" data-col="title"></span></th>
+                        <th class="sortable-th" onclick="sortFindings('confidence', this)">Confidence <span class="sort-arrow" data-col="confidence"></span></th>
+                        <th class="sortable-th" onclick="sortFindings('date', this)">Date <span class="sort-arrow" data-col="date"></span></th>
+                        <th style="width: 5rem;"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -340,7 +364,7 @@ tr.reviewed { opacity: 0.6; }
                         </td>
                         <td><span class="badge badge-type" style="font-size: 0.7rem;">{{ finding.module_name.replace('_', ' ') }}</span></td>
                         <td><span class="badge">{{ finding.source }}</span></td>
-                        <td onclick="openSlideout('{{ finding.id }}')">
+                        <td onclick="toggleInlineExpand('{{ finding.id }}', this)">
                             {% if finding.content and finding.content.startswith('http') %}
                             <a href="{{ finding.content }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ finding.title or finding.content[:60] }}</a>
                             {% else %}
@@ -355,7 +379,8 @@ tr.reviewed { opacity: 0.6; }
                             {% endif %}
                         </td>
                         <td style="color: var(--dim); font-size: 0.82rem;">{{ finding.created_at.strftime('%m/%d %H:%M') }}</td>
-                        <td>
+                        <td style="white-space: nowrap;">
+                            <button class="btn btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;" onclick="event.stopPropagation(); openSlideout('{{ finding.id }}')" title="Details">&#8942;</button>
                             <button class="btn btn-sm btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;" onclick="event.stopPropagation(); deleteFinding('{{ finding.id }}', this)" title="Delete">&#10005;</button>
                         </td>
                     </tr>
@@ -982,6 +1007,322 @@ async function runSingleModule(moduleName, tile) {
         tile.style.opacity = '1';
         showToast('Network error', 'error');
     }
+}
+
+// ── 1. Enhanced Finding Search (search across title, content, source, module) ──
+var _origApplyFilters = applyFilters;
+applyFilters = function() {
+    var search = document.getElementById('filterSearch').value.toLowerCase();
+    var findingSearch = document.getElementById('findingSearchInput');
+    var deepSearch = findingSearch ? findingSearch.value.toLowerCase().trim() : '';
+    var minConf = parseInt(document.getElementById('filterConfidence').value);
+    var show = document.getElementById('filterShow').value;
+    var rows = document.querySelectorAll('#findingsTable tbody tr.finding-row');
+
+    rows.forEach(function(row) {
+        var title = (row.dataset.title || '').toLowerCase();
+        var content = (row.dataset.content || '').toLowerCase();
+        var source = (row.dataset.source || '').toLowerCase();
+        var module = (row.dataset.module || '').toLowerCase();
+        var conf = parseInt(row.dataset.confidence) || 0;
+        var flagged = row.dataset.flagged === 'true';
+        var reviewed = row.dataset.reviewed === 'true';
+
+        var pass = true;
+        if (search && !title.includes(search) && !content.includes(search)) pass = false;
+        if (deepSearch && !title.includes(deepSearch) && !content.includes(deepSearch) && !source.includes(deepSearch) && !module.includes(deepSearch)) pass = false;
+        if (conf < minConf) pass = false;
+        if (show === 'flagged' && !flagged) pass = false;
+        if (show === 'unreviewed' && reviewed) pass = false;
+        if (activeModules.size > 0 && !activeModules.has(row.dataset.module)) pass = false;
+
+        row.dataset._filterPass = pass ? 'true' : 'false';
+    });
+
+    currentPage = 1;
+    applyPagination();
+};
+
+// ── 2. Sort Findings by Column ─────────────────────────────────
+var currentSortCol = null;
+var currentSortAsc = true;
+
+function sortFindings(col, thEl) {
+    if (currentSortCol === col) {
+        currentSortAsc = !currentSortAsc;
+    } else {
+        currentSortCol = col;
+        currentSortAsc = true;
+    }
+
+    // Update arrow indicators
+    document.querySelectorAll('.sort-arrow').forEach(function(a) {
+        a.textContent = '';
+        a.classList.remove('active');
+    });
+    var arrow = thEl.querySelector('.sort-arrow');
+    if (arrow) {
+        arrow.textContent = currentSortAsc ? '\u25B2' : '\u25BC';
+        arrow.classList.add('active');
+    }
+
+    var tbody = document.querySelector('#findingsTable tbody');
+    var rows = Array.from(tbody.querySelectorAll('tr.finding-row'));
+
+    rows.sort(function(a, b) {
+        var valA, valB;
+        switch(col) {
+            case 'module': valA = (a.dataset.module || '').toLowerCase(); valB = (b.dataset.module || '').toLowerCase(); break;
+            case 'source': valA = (a.dataset.source || '').toLowerCase(); valB = (b.dataset.source || '').toLowerCase(); break;
+            case 'title': valA = (a.dataset.title || '').toLowerCase(); valB = (b.dataset.title || '').toLowerCase(); break;
+            case 'confidence': valA = parseInt(a.dataset.confidence) || 0; valB = parseInt(b.dataset.confidence) || 0; return currentSortAsc ? valA - valB : valB - valA;
+            case 'date': valA = a.dataset.date || ''; valB = b.dataset.date || ''; break;
+            default: return 0;
+        }
+        if (valA < valB) return currentSortAsc ? -1 : 1;
+        if (valA > valB) return currentSortAsc ? 1 : -1;
+        return 0;
+    });
+
+    // Re-append sorted rows (also moves any inline-expand rows)
+    rows.forEach(function(row) {
+        tbody.appendChild(row);
+        var expandRow = document.getElementById('expand-' + row.dataset.id);
+        if (expandRow) tbody.appendChild(expandRow);
+    });
+
+    applyPagination();
+}
+
+// ── 3. Inline Expand Finding Detail ────────────────────────────
+function toggleInlineExpand(findingId, tdEl) {
+    var existingRow = document.getElementById('expand-' + findingId);
+    if (existingRow) {
+        existingRow.remove();
+        return;
+    }
+
+    var parentRow = tdEl.closest('tr');
+    var expandRow = document.createElement('tr');
+    expandRow.id = 'expand-' + findingId;
+    expandRow.className = 'finding-expand-row';
+    var expandTd = document.createElement('td');
+    expandTd.setAttribute('colspan', '8');
+    var expandContent = document.createElement('div');
+    expandContent.className = 'finding-expand-content';
+    expandContent.innerHTML = '<span style="color: var(--dim);">Loading...</span>';
+    expandTd.appendChild(expandContent);
+    expandRow.appendChild(expandTd);
+    parentRow.after(expandRow);
+
+    // Fetch full finding data
+    fetch(BASE + '/api/findings/' + findingId).then(function(resp) {
+        if (!resp.ok) throw new Error('Not found');
+        return resp.json();
+    }).then(function(f) {
+        expandContent.innerHTML = '';
+        var table = document.createElement('table');
+
+        function addRow(key, val) {
+            var tr = document.createElement('tr');
+            var tdK = document.createElement('td');
+            tdK.textContent = key;
+            tr.appendChild(tdK);
+            var tdV = document.createElement('td');
+            if (typeof val === 'string' && (val.startsWith('http://') || val.startsWith('https://'))) {
+                var link = document.createElement('a');
+                link.href = val;
+                link.textContent = val;
+                link.target = '_blank';
+                link.rel = 'noopener';
+                link.style.color = 'var(--accent)';
+                tdV.appendChild(link);
+            } else if (typeof val === 'object' && val !== null) {
+                var pre = document.createElement('pre');
+                pre.style.cssText = 'margin:0;font-size:0.78rem;color:var(--dim);white-space:pre-wrap;';
+                pre.textContent = JSON.stringify(val, null, 2);
+                tdV.appendChild(pre);
+            } else {
+                tdV.textContent = val === null || val === undefined ? '\u2014' : String(val);
+            }
+            tr.appendChild(tdV);
+            table.appendChild(tr);
+        }
+
+        addRow('Module', (f.module_name || '').replace(/_/g, ' '));
+        addRow('Source', f.source || '\u2014');
+        addRow('Type', f.finding_type || '\u2014');
+        addRow('Confidence', f.confidence !== null && f.confidence !== undefined ? f.confidence + '%' : '\u2014');
+        addRow('Content', f.content || '\u2014');
+        addRow('Flagged', f.is_flagged ? 'Yes' : 'No');
+        addRow('Reviewed', f.is_reviewed ? 'Yes' : 'No');
+        addRow('Created', f.created_at ? new Date(f.created_at).toLocaleString() : '\u2014');
+
+        if (f.data && typeof f.data === 'object') {
+            Object.keys(f.data).forEach(function(key) {
+                addRow('data.' + key, f.data[key]);
+            });
+        }
+
+        expandContent.appendChild(table);
+    }).catch(function() {
+        expandContent.innerHTML = '<span style="color: var(--red);">Failed to load details.</span>';
+    });
+}
+
+// ── 4. Module Run Duration in Status Grid ──────────────────────
+var _origLoadModuleStatusGrid = loadModuleStatusGrid;
+loadModuleStatusGrid = async function() {
+    var grid = document.getElementById('moduleStatusGrid');
+    if (!grid) return;
+
+    try {
+        var resp = await fetch(BASE + '/api/modules/for-target/' + TARGET_ID);
+        if (!resp.ok) throw new Error('Failed');
+        var data = await resp.json();
+        var applicableModules = data.modules || [];
+
+        // Build run map with timing from module_runs template data
+        var runMap = {};
+        {% if module_runs %}
+        var moduleRunsData = [
+            {% for run in module_runs %}
+            {
+                name: "{{ run.module_name }}",
+                status: "{{ run.status }}",
+                count: {{ run.findings_count or 0 }},
+                started_at: "{{ run.started_at.isoformat() if run.started_at else '' }}",
+                completed_at: "{{ run.completed_at.isoformat() if run.completed_at else '' }}"
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+        moduleRunsData.forEach(function(run) {
+            var key = run.name.toLowerCase();
+            if (!runMap[key] || run.status === 'completed') {
+                runMap[key] = run;
+            }
+        });
+        {% endif %}
+
+        var modulesWithFindings = {};
+        document.querySelectorAll('#findingsTable tbody tr.finding-row').forEach(function(row) {
+            var mod = row.dataset.module;
+            if (mod) modulesWithFindings[mod] = (modulesWithFindings[mod] || 0) + 1;
+        });
+
+        grid.replaceChildren();
+
+        if (applicableModules.length === 0) {
+            grid.appendChild(el('div', {text: 'No applicable modules for this target type.', style: 'color: var(--muted); font-size: 0.85rem; grid-column: 1/-1; text-align: center; padding: 0.5rem;'}));
+            return;
+        }
+
+        applicableModules.forEach(function(mod) {
+            var tile = document.createElement('div');
+            tile.className = 'mod-tile';
+            var nameDiv = document.createElement('div');
+            nameDiv.className = 'mod-tile-name';
+            nameDiv.textContent = mod.name.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+            tile.appendChild(nameDiv);
+
+            var infoDiv = document.createElement('div');
+            infoDiv.className = 'mod-tile-info';
+
+            var findingsCount = modulesWithFindings[mod.name] || 0;
+            var runInfo = runMap[mod.name.toLowerCase()] || runMap[mod.name];
+
+            if (runInfo && runInfo.status === 'failed') {
+                tile.classList.add('mod-tile-red');
+                infoDiv.textContent = 'Failed';
+            } else if (findingsCount > 0 || (runInfo && runInfo.status === 'completed' && runInfo.count > 0)) {
+                tile.classList.add('mod-tile-green');
+                infoDiv.textContent = (findingsCount || runInfo.count) + ' findings';
+            } else if (runInfo && runInfo.status === 'completed') {
+                tile.classList.add('mod-tile-yellow');
+                infoDiv.textContent = '0 findings';
+            } else {
+                tile.classList.add('mod-tile-gray');
+                infoDiv.textContent = 'Not run';
+                tile.title = 'Click to run ' + mod.name.replace(/_/g, ' ');
+                tile.onclick = function() { runSingleModule(mod.name, tile); };
+            }
+
+            tile.appendChild(infoDiv);
+
+            // Show duration if completed
+            if (runInfo && runInfo.status === 'completed' && runInfo.started_at && runInfo.completed_at) {
+                var startT = new Date(runInfo.started_at).getTime();
+                var endT = new Date(runInfo.completed_at).getTime();
+                if (startT && endT && endT > startT) {
+                    var durationSec = ((endT - startT) / 1000).toFixed(1);
+                    var durDiv = document.createElement('div');
+                    durDiv.className = 'mod-tile-duration';
+                    durDiv.textContent = durationSec + 's';
+                    tile.appendChild(durDiv);
+                }
+            }
+
+            grid.appendChild(tile);
+        });
+    } catch(e) {
+        grid.replaceChildren();
+        grid.appendChild(el('div', {text: 'Failed to load module status.', style: 'color: var(--muted); font-size: 0.85rem; grid-column: 1/-1; text-align: center; padding: 0.5rem;'}));
+    }
+};
+
+// ── 5. Target Metadata Quick-Edit ──────────────────────────────
+function editTargetField(field, spanEl) {
+    var currentVal = spanEl.textContent.trim();
+    if (currentVal === 'Not set') currentVal = '';
+
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'target-edit-input';
+    input.value = currentVal;
+    spanEl.replaceWith(input);
+    input.focus();
+    input.select();
+
+    var saving = false;
+    function finishEdit(save) {
+        if (saving) return;
+        saving = true;
+        var newVal = input.value.trim();
+        var newSpan = document.createElement('span');
+        newSpan.className = 'editable-value';
+        newSpan.title = 'Click to edit';
+        newSpan.onclick = function() { editTargetField(field, newSpan); };
+
+        if (save && newVal !== currentVal) {
+            var body = {};
+            body[field] = newVal || null;
+            fetch(BASE + '/api/targets/' + TARGET_ID, {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body)
+            }).then(function(resp) {
+                if (resp.ok) {
+                    newSpan.textContent = newVal || 'Not set';
+                    showToast(field.replace(/_/g, ' ') + ' updated');
+                } else {
+                    newSpan.textContent = currentVal || 'Not set';
+                    showToast('Failed to update', 'error');
+                }
+            }).catch(function() {
+                newSpan.textContent = currentVal || 'Not set';
+                showToast('Network error', 'error');
+            });
+        } else {
+            newSpan.textContent = currentVal || 'Not set';
+        }
+        input.replaceWith(newSpan);
+    }
+
+    input.addEventListener('keydown', function(ev) {
+        if (ev.key === 'Enter') finishEdit(true);
+        if (ev.key === 'Escape') finishEdit(false);
+    });
+    input.addEventListener('blur', function() { finishEdit(true); });
 }
 
 // Init
