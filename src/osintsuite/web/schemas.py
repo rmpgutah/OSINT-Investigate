@@ -48,6 +48,12 @@ class NoteCreate(BaseModel):
 class InvestigationUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
+    priority: str | None = Field(default=None, pattern=r"^(low|medium|high|critical)$")
+    assigned_to: str | None = None
+    tags: list[str] | None = None
+    classification: str | None = Field(
+        default=None, pattern=r"^(unclassified|sensitive|confidential|secret)$"
+    )
 
 
 class TargetUpdate(BaseModel):
@@ -74,6 +80,10 @@ class InvestigationResponse(BaseModel):
     title: str
     description: str | None
     status: str
+    priority: str = "medium"
+    assigned_to: str | None = None
+    tags: list[str] = []
+    classification: str = "unclassified"
     created_at: datetime
     updated_at: datetime
     target_count: int = 0
@@ -125,3 +135,56 @@ class ReportResponse(BaseModel):
     generated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ── Workflow Schemas ─────────────────────────────────────────────
+
+class FindingLinkRequest(BaseModel):
+    finding_a_id: uuid.UUID
+    finding_b_id: uuid.UUID
+    relationship: str = Field(min_length=1, max_length=100)
+
+
+class FindingLinkResponse(BaseModel):
+    id: uuid.UUID
+    finding_a_id: uuid.UUID
+    finding_b_id: uuid.UUID
+    relationship: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AuditLogResponse(BaseModel):
+    id: uuid.UUID
+    entity_type: str
+    entity_id: uuid.UUID
+    action: str
+    details: dict[str, Any]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class TimelineEvent(BaseModel):
+    type: str
+    timestamp: str | None = None
+    action: str | None = None
+    details: dict[str, Any] | None = None
+    module_name: str | None = None
+    status: str | None = None
+    findings_count: int | None = None
+    title: str | None = None
+    source: str | None = None
+
+
+class CaseTemplate(BaseModel):
+    name: str
+    description: str
+    target_types: list[str]
+
+
+class FromTemplateRequest(BaseModel):
+    template_name: str
+    title: str = Field(min_length=1, max_length=255)
+    description: str | None = None

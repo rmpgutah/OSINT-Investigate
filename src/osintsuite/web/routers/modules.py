@@ -215,3 +215,119 @@ async def global_search(
             for t in targets
         ],
     }
+
+
+# ── Stats endpoint ───────────────────────────────────────────────────
+
+@router.get("/stats/{investigation_id}")
+async def get_investigation_stats(
+    investigation_id: uuid.UUID,
+    repo: Repository = Depends(get_repo),
+):
+    """Return aggregated statistics for an investigation's findings."""
+    from collections import Counter, defaultdict
+    from sqlalchemy import select
+    from osintsuite.db.models import Finding, Target
+
+    # Get all targets for this investigation
+    targets = await repo.list_targets(investigation_id)
+    if not targets:
+        return {
+            "findings_by_module": {},
+            "findings_by_confidence": {"high": 0, "medium": 0, "low": 0},
+            "findings_by_source": {},
+            "findings_over_time": [],
+            "target_comparison": [],
+        }
+
+    # Gather all findings across all targets
+    all_findings = []
+    target_comparison = []
+    for t in targets:
+        findings = await repo.get_findings_by_target(t.id)
+        all_findings.extend(findings)
+        # Count distinct modules run for this target
+        modules_seen = set()
+        for f in findings:
+            modules_seen.add(f.module_name)
+        target_comparison.append({
+            "target_label": t.label,
+            "findings_count": len(findings),
+            "modules_run": len(modules_seen),
+        })
+
+    # findings_by_module
+    by_module = Counter()
+    for f in all_findings:
+        by_module[f.module_name] += 1
+
+    # findings_by_confidence
+    by_confidence = {"high": 0, "medium": 0, "low": 0}
+    for f in all_findings:
+        c = f.confidence or 0
+        if c > 70:
+            by_confidence["high"] += 1
+        elif c > 40:
+            by_confidence["medium"] += 1
+        else:
+            by_confidence["low"] += 1
+
+    # findings_by_source
+    by_source = Counter()
+    for f in all_findings:
+        by_source[f.source] += 1
+
+    # findings_over_time — group by date
+    by_date = Counter()
+    for f in all_findings:
+        day = f.created_at.strftime("%Y-%m-%d")
+        by_date[day] += 1
+    over_time = sorted(
+        [{"date": d, "count": c} for d, c in by_date.items()],
+        key=lambda x: x["date"],
+    )
+
+    return {
+        "findings_by_module": dict(by_module),
+        "findings_by_confidence": by_confidence,
+        "findings_by_source": dict(by_source),
+        "findings_over_time": over_time,
+        "target_comparison": target_comparison,
+    }
+
+
+# ── Map data endpoint ────────────────────────────────────────────────
+
+@router.get("/map-data/{investigation_id}")
+async def get_map_data(
+    investigation_id: uuid.UUID,
+    repo: Repository = Depends(get_repo),
+):
+    """Return all findings with lat/lon data for map display."""
+    targets = await repo.list_targets(investigation_id)
+    geo_findings = []
+
+    for t in targets:
+        findings = await repo.get_findings_by_target(t.id)
+        for f in findings:
+            if not f.data or not isinstance(f.data, dict):
+                continue
+            lat = f.data.get("lat") or f.data.get("latitude")
+            lon = f.data.get("lon") or f.data.get("longitude")
+            if lat is not None and lon is not None:
+                try:
+                    lat_f = float(lat)
+                    lon_f = float(lon)
+                except (ValueError, TypeError):
+                    continue
+                geo_findings.append({
+                    "lat": lat_f,
+                    "lon": lon_f,
+                    "label": f.title or f.finding_type,
+                    "finding_type": f.finding_type,
+                    "source": f.source,
+                    "confidence": f.confidence,
+                    "target_label": t.label,
+                })
+
+    return geo_findings

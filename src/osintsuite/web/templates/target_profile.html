@@ -24,9 +24,13 @@ tr.reviewed { opacity: 0.6; }
 <div class="target-profile">
     <div class="page-header">
         <div>
-            <div style="margin-bottom: 0.3rem;">
-                <a href="/" style="color: var(--dim); font-size: 0.85rem; text-decoration: none;">&larr; Dashboard</a>
-            </div>
+            <nav class="breadcrumbs">
+                <a href="/">Dashboard</a>
+                <span class="bc-sep">&#9656;</span>
+                <a href="/investigation/{{ investigation.case_number }}">{{ investigation.case_number }}</a>
+                <span class="bc-sep">&#9656;</span>
+                <span class="bc-current">{{ target.label }}</span>
+            </nav>
             <h1>{{ target.label }}</h1>
             <span class="badge badge-type" style="margin-top: 0.3rem;">{{ target.target_type }}</span>
         </div>
@@ -85,6 +89,16 @@ tr.reviewed { opacity: 0.6; }
         <h2 style="margin-bottom: 1rem;">Findings</h2>
 
         {% if findings_by_module %}
+        <!-- 77. Bulk action bar -->
+        <div class="bulk-bar" id="bulkBar">
+            <span class="bulk-count" id="bulkCount">0</span> selected
+            <div style="flex:1;"></div>
+            <button onclick="bulkAction('flag')">Flag Selected</button>
+            <button onclick="bulkAction('review')">Review Selected</button>
+            <button onclick="bulkAction('delete')">Delete Selected</button>
+            <button onclick="clearBulkSelection()" style="background:rgba(255,255,255,0.1);">Clear</button>
+        </div>
+
         <!-- Filter bar -->
         <div class="filter-bar">
             <div class="filter-group">
@@ -124,6 +138,7 @@ tr.reviewed { opacity: 0.6; }
                 <table class="data-table" id="findingsTable" style="border-top: none; border-radius: 0 0 var(--r) var(--r);">
                     <thead>
                         <tr>
+                            <th style="width: 2rem;"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all"></th>
                             <th style="width: 3rem;"></th>
                             <th>Module</th>
                             <th>Source</th>
@@ -147,6 +162,7 @@ tr.reviewed { opacity: 0.6; }
                             data-source="{{ finding.source }}"
                             data-type="{{ finding.finding_type }}"
                             data-date="{{ finding.created_at.strftime('%m/%d %H:%M') }}">
+                            <td onclick="event.stopPropagation()"><input type="checkbox" class="finding-cb" data-finding-id="{{ finding.id }}" onchange="updateBulkBar()"></td>
                             <td>
                                 <button class="flag-btn {% if finding.is_flagged %}active{% endif %}" onclick="event.stopPropagation(); toggleFlag('{{ finding.id }}', this)" title="Flag as important">&#9733;</button>
                                 <button class="review-btn {% if finding.is_reviewed %}active{% endif %}" onclick="event.stopPropagation(); toggleReview('{{ finding.id }}', this)" title="Mark reviewed">&#10003;</button>
@@ -176,6 +192,12 @@ tr.reviewed { opacity: 0.6; }
                         {% endfor %}
                     </tbody>
                 </table>
+                <!-- 76. Pagination -->
+                <div id="paginationBar" style="display:flex; align-items:center; justify-content:center; gap:0.5rem; padding:1rem; background:var(--card); border:1px solid var(--border); border-top:none; border-radius:0 0 var(--r) var(--r);">
+                    <button class="btn btn-sm" id="prevPage" onclick="changePage(-1)">&larr; Prev</button>
+                    <span id="pageInfo" style="color:var(--dim); font-size:0.85rem;"></span>
+                    <button class="btn btn-sm" id="nextPage" onclick="changePage(1)">Next &rarr;</button>
+                </div>
             </div>
 
             {% for module_name, findings in findings_by_module.items() %}
@@ -225,6 +247,8 @@ tr.reviewed { opacity: 0.6; }
 {% block scripts %}
 <script>
 const TARGET_ID = "{{ target.id }}";
+const PAGE_SIZE = 50;
+let currentPage = 1;
 
 function showTab(name, btn) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -252,13 +276,50 @@ async function runModules(btn) {
     btn.textContent = 'Run All Modules';
 }
 
+// ── 76. Pagination ───────────────────────────────────────────────
+function getFilteredRows() {
+    return Array.from(document.querySelectorAll('#findingsTable tbody tr')).filter(r => r.dataset._filterPass !== 'false');
+}
+
+function applyPagination() {
+    const allRows = document.querySelectorAll('#findingsTable tbody tr');
+    const filtered = [];
+    allRows.forEach(r => { if (r.dataset._filterPass !== 'false') filtered.push(r); });
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const end = start + PAGE_SIZE;
+
+    filtered.forEach((row, i) => {
+        row.style.display = (i >= start && i < end) ? '' : 'none';
+    });
+
+    // Hide rows that failed filter
+    allRows.forEach(r => { if (r.dataset._filterPass === 'false') r.style.display = 'none'; });
+
+    const pageInfo = document.getElementById('pageInfo');
+    const prevBtn = document.getElementById('prevPage');
+    const nextBtn = document.getElementById('nextPage');
+    if (pageInfo) pageInfo.textContent = 'Page ' + currentPage + ' of ' + totalPages + ' (' + filtered.length + ' findings)';
+    if (prevBtn) prevBtn.disabled = currentPage <= 1;
+    if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+
+    document.getElementById('filterCount').textContent = filtered.length + ' / ' + allRows.length + ' shown';
+}
+
+function changePage(delta) {
+    currentPage += delta;
+    applyPagination();
+}
+
 // ── Filters ──────────────────────────────────────────────────────
 function applyFilters() {
     const search = document.getElementById('filterSearch').value.toLowerCase();
     const minConf = parseInt(document.getElementById('filterConfidence').value);
     const show = document.getElementById('filterShow').value;
     const rows = document.querySelectorAll('#findingsTable tbody tr');
-    let visible = 0;
 
     rows.forEach(row => {
         const title = (row.dataset.title || '').toLowerCase();
@@ -273,11 +334,74 @@ function applyFilters() {
         if (show === 'flagged' && !flagged) pass = false;
         if (show === 'unreviewed' && reviewed) pass = false;
 
-        row.style.display = pass ? '' : 'none';
-        if (pass) visible++;
+        row.dataset._filterPass = pass ? 'true' : 'false';
     });
 
-    document.getElementById('filterCount').textContent = visible + ' / ' + rows.length + ' shown';
+    currentPage = 1;
+    applyPagination();
+}
+
+// ── 77. Bulk Actions ─────────────────────────────────────────────
+function toggleSelectAll(cb) {
+    document.querySelectorAll('.finding-cb').forEach(c => {
+        if (c.closest('tr').style.display !== 'none') c.checked = cb.checked;
+    });
+    updateBulkBar();
+}
+
+function updateBulkBar() {
+    const checked = document.querySelectorAll('.finding-cb:checked');
+    const bar = document.getElementById('bulkBar');
+    const count = document.getElementById('bulkCount');
+    if (checked.length > 0) {
+        bar.classList.add('active');
+        count.textContent = checked.length;
+    } else {
+        bar.classList.remove('active');
+    }
+}
+
+function clearBulkSelection() {
+    document.querySelectorAll('.finding-cb').forEach(c => c.checked = false);
+    const sa = document.getElementById('selectAll');
+    if (sa) sa.checked = false;
+    updateBulkBar();
+}
+
+async function bulkAction(action) {
+    const checked = document.querySelectorAll('.finding-cb:checked');
+    if (!checked.length) return;
+
+    if (action === 'delete' && !confirm('Delete ' + checked.length + ' finding(s)?')) return;
+
+    let success = 0;
+    for (const cb of checked) {
+        const id = cb.dataset.findingId;
+        try {
+            if (action === 'flag') {
+                await fetch('/api/findings/' + id, { method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({is_flagged: true}) });
+                const row = cb.closest('tr');
+                row.classList.add('flagged');
+                row.dataset.flagged = 'true';
+                const flagBtn = row.querySelector('.flag-btn');
+                if (flagBtn) flagBtn.classList.add('active');
+            } else if (action === 'review') {
+                await fetch('/api/findings/' + id, { method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({is_reviewed: true}) });
+                const row = cb.closest('tr');
+                row.classList.add('reviewed');
+                row.dataset.reviewed = 'true';
+                const revBtn = row.querySelector('.review-btn');
+                if (revBtn) revBtn.classList.add('active');
+            } else if (action === 'delete') {
+                const resp = await fetch('/api/findings/' + id, { method: 'DELETE' });
+                if (resp.ok) { const row = cb.closest('tr'); if (row) row.remove(); }
+            }
+            success++;
+        } catch(e) { /* continue */ }
+    }
+    showToast(success + ' finding(s) ' + (action === 'delete' ? 'deleted' : action === 'flag' ? 'flagged' : 'reviewed'));
+    clearBulkSelection();
+    if (action === 'delete') applyPagination();
 }
 
 // ── Flag / Review toggles ────────────────────────────────────────
@@ -324,7 +448,7 @@ async function deleteFinding(findingId, btn) {
             const row = btn.closest('tr');
             if (row) row.remove();
             showToast('Finding deleted');
-            applyFilters();
+            applyPagination();
         } else { showToast('Failed to delete', 'error'); }
     } catch(e) { showToast('Network error', 'error'); }
 }
@@ -345,7 +469,6 @@ async function showFindingDetail(findingId) {
 
         title.textContent = f.title || f.finding_type;
 
-        // Build detail view using safe DOM methods
         const section = (label, value) => {
             const div = el('div', {style: 'margin-bottom: 1rem;'});
             div.appendChild(el('strong', {text: label, style: 'display: block; color: var(--muted); font-size: 0.78rem; text-transform: uppercase; margin-bottom: 0.2rem;'}));
@@ -366,7 +489,6 @@ async function showFindingDetail(findingId) {
             body.appendChild(section('Content', f.content));
         }
 
-        // Data dict
         if (f.data && Object.keys(f.data).length > 0) {
             const dataSection = el('div', {style: 'margin-bottom: 1rem;'});
             dataSection.appendChild(el('strong', {text: 'Data', style: 'display: block; color: var(--muted); font-size: 0.78rem; text-transform: uppercase; margin-bottom: 0.4rem;'}));
@@ -383,7 +505,7 @@ async function showFindingDetail(findingId) {
     }
 }
 
-// Init filter count
+// Init
 applyFilters();
 </script>
 {% endblock %}

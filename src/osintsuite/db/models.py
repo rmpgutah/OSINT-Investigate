@@ -81,6 +81,20 @@ class Investigation(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
     closed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    priority: Mapped[str] = mapped_column(
+        String(10),
+        CheckConstraint("priority IN ('low', 'medium', 'high', 'critical')"),
+        default="medium",
+        nullable=False,
+    )
+    assigned_to: Mapped[Optional[str]] = mapped_column(String(255))
+    tags: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
+    classification: Mapped[str] = mapped_column(
+        String(20),
+        CheckConstraint("classification IN ('unclassified', 'sensitive', 'confidential', 'secret')"),
+        default="unclassified",
+        nullable=False,
+    )
 
     targets: Mapped[List["Target"]] = relationship(back_populates="investigation", cascade="all, delete-orphan")
     reports: Mapped[List["Report"]] = relationship(back_populates="investigation", cascade="all, delete-orphan")
@@ -242,3 +256,59 @@ class Note(Base):
 
     def __repr__(self) -> str:
         return f"<Note {self.id} ({len(self.content)} chars)>"
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    entity_type: Mapped[str] = mapped_column(
+        String(50),
+        CheckConstraint("entity_type IN ('investigation', 'target', 'finding')"),
+        nullable=False,
+    )
+    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    action: Mapped[str] = mapped_column(
+        String(50),
+        CheckConstraint("action IN ('created', 'updated', 'deleted', 'module_run', 'status_change')"),
+        nullable=False,
+    )
+    details: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        Index("idx_audit_entity", "entity_type", "entity_id"),
+        Index("idx_audit_created", "created_at"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<AuditLog {self.action} on {self.entity_type}/{self.entity_id}>"
+
+
+class FindingLink(Base):
+    __tablename__ = "finding_links"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    finding_a_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("findings.id", ondelete="CASCADE"), nullable=False
+    )
+    finding_b_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("findings.id", ondelete="CASCADE"), nullable=False
+    )
+    relationship_type: Mapped[str] = mapped_column("relationship", String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    finding_a: Mapped["Finding"] = relationship(foreign_keys=[finding_a_id])
+    finding_b: Mapped["Finding"] = relationship(foreign_keys=[finding_b_id])
+
+    __table_args__ = (
+        Index("idx_finding_links_a", "finding_a_id"),
+        Index("idx_finding_links_b", "finding_b_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<FindingLink {self.finding_a_id} --{self.relationship_type}--> {self.finding_b_id}>"

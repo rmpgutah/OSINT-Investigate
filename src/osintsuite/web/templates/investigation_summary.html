@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+
+{% block title %}Summary — {{ investigation.case_number }} — OSINT Suite{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+.summary-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+.summary-stat { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 1.25rem 1.5rem; text-align: center; }
+.summary-stat .stat-number { font-size: 2rem; font-weight: 800; line-height: 1.1; }
+.summary-stat .stat-label { color: var(--dim); font-size: 0.85rem; margin-top: 0.25rem; }
+.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 2rem; }
+.chart-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 1.5rem; }
+.chart-card h3 { font-size: 1rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 1rem; }
+.chart-card canvas { max-height: 300px; }
+#summaryMap { height: 350px; border-radius: var(--r); }
+.priority-badge-lg { display: inline-block; padding: 0.3rem 0.9rem; border-radius: 20px; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.03em; margin-left: 0.75rem; }
+@media (max-width: 768px) {
+    .summary-stats { grid-template-columns: repeat(2, 1fr); }
+    .chart-grid { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+{# Classification banner #}
+<div class="classification-banner classification-{{ investigation.classification }}">
+    {{ investigation.classification }}
+</div>
+
+<div class="investigation-summary">
+    <div class="page-header">
+        <div>
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.3rem;">
+                <a href="/investigation/{{ investigation.case_number }}" style="color: var(--dim); font-size: 0.85rem; text-decoration: none;">&larr; Back to Case</a>
+            </div>
+            <div style="display: flex; align-items: center; flex-wrap: wrap;">
+                <h1>Executive Summary</h1>
+                <span class="priority-badge-lg badge-{{ investigation.priority }}">{{ investigation.priority }}</span>
+            </div>
+            <p class="subtitle">{{ investigation.case_number }} &mdash; {{ investigation.title }}</p>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem;">
+            <span class="badge badge-{{ investigation.status }}" style="font-size: 0.85rem; padding: 0.3rem 0.9rem;">{{ investigation.status }}</span>
+            {% if investigation.assigned_to %}
+            <span style="color: var(--dim); font-size: 0.82rem;">Assigned to: {{ investigation.assigned_to }}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Stats grid #}
+    <div class="summary-stats">
+        <div class="summary-stat">
+            <div class="stat-number" style="color: var(--accent);" id="statTargets">{{ total_targets }}</div>
+            <div class="stat-label">Total Targets</div>
+        </div>
+        <div class="summary-stat">
+            <div class="stat-number" style="color: var(--green);" id="statFindings">{{ total_findings }}</div>
+            <div class="stat-label">Total Findings</div>
+        </div>
+        <div class="summary-stat">
+            <div class="stat-number" style="color: var(--yellow);" id="statFlagged">{{ flagged_count }}</div>
+            <div class="stat-label">Flagged</div>
+        </div>
+        <div class="summary-stat">
+            <div class="stat-number" style="color: var(--dim);" id="statReviewed">{{ reviewed_count }}</div>
+            <div class="stat-label">Reviewed</div>
+        </div>
+    </div>
+
+    {# Charts #}
+    <div class="chart-grid">
+        <div class="chart-card">
+            <h3>Findings per Module</h3>
+            <canvas id="moduleChart"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Confidence Distribution</h3>
+            <canvas id="confidenceChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 2rem;">
+        <h3>Findings Over Time</h3>
+        <canvas id="timelineChart" style="max-height: 250px;"></canvas>
+    </div>
+
+    {# Target comparison table #}
+    <div class="section" style="margin-bottom: 2rem;">
+        <h2 style="margin-bottom: 1rem;">Target Comparison</h2>
+        <table class="data-table" id="targetComparisonTable">
+            <thead>
+                <tr>
+                    <th>Target</th>
+                    <th>Findings</th>
+                    <th>Modules Run</th>
+                </tr>
+            </thead>
+            <tbody id="targetComparisonBody">
+                <tr><td colspan="3" style="color: var(--muted); text-align: center; padding: 1rem;">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    {# Flagged findings #}
+    {% if flagged_findings %}
+    <div class="section" style="margin-bottom: 2rem;">
+        <h2 style="margin-bottom: 1rem;">Top Flagged Findings</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Module</th>
+                    <th>Source</th>
+                    <th>Title</th>
+                    <th>Confidence</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in flagged_findings %}
+                <tr>
+                    <td><span class="badge badge-type" style="font-size: 0.7rem;">{{ f.module_name.replace('_', ' ') }}</span></td>
+                    <td><span class="badge">{{ f.source }}</span></td>
+                    <td>{{ f.title or '\u2014' }}</td>
+                    <td>
+                        {% if f.confidence is not none %}
+                        <span class="confidence confidence-{{ 'high' if f.confidence > 70 else 'medium' if f.confidence > 40 else 'low' }}">{{ f.confidence }}%</span>
+                        {% else %}
+                        <span style="color: var(--muted);">&mdash;</span>
+                        {% endif %}
+                    </td>
+                    <td style="color: var(--dim); font-size: 0.82rem;">{{ f.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {# Map #}
+    <div class="card" style="margin-bottom: 2rem;">
+        <h3>Geolocated Findings</h3>
+        <div id="summaryMap"></div>
+        <p id="mapEmpty" style="display: none; color: var(--muted); text-align: center; padding: 1.5rem;">No geolocated findings available.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const INV_ID = "{{ investigation.id }}";
+const CASE_NUM = "{{ investigation.case_number }}";
+
+// Chart.js global defaults for dark theme
+Chart.defaults.color = '#9ca3b0';
+Chart.defaults.borderColor = '#2d3343';
+
+// ── Load stats and render charts ────────────────────────────────────
+async function loadSummaryData() {
+    try {
+        const resp = await fetch('/api/modules/stats/' + INV_ID);
+        if (!resp.ok) throw new Error('Failed to load stats');
+        const data = await resp.json();
+
+        renderModuleChart(data.findings_by_module);
+        renderConfidenceChart(data.findings_by_confidence);
+        renderTimelineChart(data.findings_over_time);
+        renderTargetComparison(data.target_comparison);
+    } catch (e) {
+        showToast('Failed to load summary data', 'error');
+    }
+}
+
+function renderModuleChart(byModule) {
+    const labels = Object.keys(byModule).map(function(n) { return n.replace(/_/g, ' '); });
+    const values = Object.values(byModule);
+    const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', '#f97316', '#ec4899', '#14b8a6', '#8b5cf6'];
+
+    new Chart(document.getElementById('moduleChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Findings',
+                data: values,
+                backgroundColor: values.map(function(_, i) { return colors[i % colors.length]; }),
+                borderRadius: 4,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { precision: 0 } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+function renderConfidenceChart(byConf) {
+    new Chart(document.getElementById('confidenceChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['High (>70%)', 'Medium (41-70%)', 'Low (0-40%)'],
+            datasets: [{
+                data: [byConf.high, byConf.medium, byConf.low],
+                backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'],
+                borderColor: '#21252f',
+                borderWidth: 3,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true } }
+            }
+        }
+    });
+}
+
+function renderTimelineChart(overTime) {
+    var labels = overTime.map(function(d) { return d.date; });
+    var values = overTime.map(function(d) { return d.count; });
+
+    new Chart(document.getElementById('timelineChart'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Findings',
+                data: values,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: '#3b82f6',
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { precision: 0 } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+function renderTargetComparison(targets) {
+    var body = document.getElementById('targetComparisonBody');
+    body.replaceChildren();
+
+    if (!targets.length) {
+        var row = el('tr');
+        var td = el('td', {text: 'No targets yet.', style: 'color: var(--muted); text-align: center; padding: 1rem;'});
+        td.setAttribute('colspan', '3');
+        row.appendChild(td);
+        body.appendChild(row);
+        return;
+    }
+
+    targets.forEach(function(t) {
+        var row = el('tr');
+        row.appendChild(el('td', {text: t.target_label}));
+        row.appendChild(el('td', {text: String(t.findings_count), style: 'color: var(--dim);'}));
+        row.appendChild(el('td', {text: String(t.modules_run), style: 'color: var(--dim);'}));
+        body.appendChild(row);
+    });
+}
+
+// ── Load map data ───────────────────────────────────────────────────
+async function loadMapData() {
+    var mapDiv = document.getElementById('summaryMap');
+    var mapEmpty = document.getElementById('mapEmpty');
+
+    try {
+        var resp = await fetch('/api/modules/map-data/' + INV_ID);
+        if (!resp.ok) throw new Error('Failed to load map data');
+        var points = await resp.json();
+
+        if (!points.length) {
+            mapDiv.style.display = 'none';
+            mapEmpty.style.display = 'block';
+            return;
+        }
+
+        var map = L.map('summaryMap').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'OpenStreetMap',
+            maxZoom: 18,
+        }).addTo(map);
+
+        var bounds = [];
+        points.forEach(function(p) {
+            var marker = L.circleMarker([p.lat, p.lon], {
+                radius: 7,
+                fillColor: p.confidence > 70 ? '#22c55e' : p.confidence > 40 ? '#f59e0b' : '#ef4444',
+                color: '#fff',
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 0.8,
+            }).addTo(map);
+
+            var popupEl = document.createElement('div');
+            popupEl.appendChild(el('strong', {text: p.label}));
+            popupEl.appendChild(el('br'));
+            popupEl.appendChild(el('span', {text: 'Target: ' + p.target_label, style: 'font-size: 0.85em; color: #666;'}));
+            popupEl.appendChild(el('br'));
+            popupEl.appendChild(el('span', {text: p.source + ' | ' + p.finding_type, style: 'font-size: 0.8em; color: #999;'}));
+            marker.bindPopup(popupEl);
+
+            bounds.push([p.lat, p.lon]);
+        });
+
+        if (bounds.length) {
+            map.fitBounds(bounds, {padding: [30, 30]});
+        }
+    } catch (e) {
+        mapDiv.style.display = 'none';
+        mapEmpty.style.display = 'block';
+    }
+}
+
+// ── Init ─────────────────────────────────────────────────────────────
+loadSummaryData();
+loadMapData();
+</script>
+{% endblock %}

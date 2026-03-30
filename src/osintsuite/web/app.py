@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from osintsuite.config import get_settings
-from osintsuite.web.routers import dashboard, findings, investigations, reports, targets, modules
+from osintsuite.web.routers import dashboard, findings, investigations, reports, targets, modules, workflow, integrations, advanced
 
 WEB_DIR = Path(__file__).parent
 TEMPLATES_DIR = WEB_DIR / "templates"
@@ -48,6 +48,9 @@ def create_app() -> FastAPI:
     app.include_router(findings.router, prefix="/api/findings", tags=["findings"])
     app.include_router(reports.router, prefix="/api/reports", tags=["reports"])
     app.include_router(modules.router, prefix="/api/modules", tags=["modules"])
+    app.include_router(workflow.router, prefix="/api/workflow", tags=["workflow"])
+    app.include_router(integrations.router, prefix="/api/integrations", tags=["integrations"])
+    app.include_router(advanced.router, prefix="/api/advanced", tags=["advanced"])
 
     return app
 

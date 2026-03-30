@@ -14,12 +14,19 @@
 {% block title %}{{ investigation.case_number }} — OSINT Suite{% endblock %}
 
 {% block content %}
+{# Classification banner #}
+<div class="classification-banner classification-{{ investigation.classification }}">
+    {{ investigation.classification }}
+</div>
+
 <div class="investigation-detail">
     <div class="page-header">
         <div>
-            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.3rem;">
-                <a href="/" style="color: var(--dim); font-size: 0.85rem; text-decoration: none;">&larr; Dashboard</a>
-            </div>
+            <nav class="breadcrumbs">
+                <a href="/">Dashboard</a>
+                <span class="bc-sep">&#9656;</span>
+                <span class="bc-current">{{ investigation.case_number }}</span>
+            </nav>
             <h1>{{ investigation.case_number }}</h1>
             <p class="subtitle" id="invTitle">{{ investigation.title }}</p>
             <button class="btn btn-sm" style="margin-top: 0.4rem;" onclick="document.getElementById('editInvModal').style.display='flex'">Edit</button>
@@ -31,6 +38,7 @@
                 <option value="closed" {% if investigation.status == 'closed' %}selected{% endif %}>Closed</option>
                 <option value="archived" {% if investigation.status == 'archived' %}selected{% endif %}>Archived</option>
             </select>
+            <span class="badge badge-{{ investigation.priority }}">{{ investigation.priority }}</span>
             <span class="badge badge-{{ investigation.status }}" id="statusBadge" style="font-size: 0.85rem; padding: 0.3rem 0.9rem;">{{ investigation.status }}</span>
         </div>
     </div>
@@ -47,6 +55,7 @@
         <button class="btn btn-primary" onclick="document.getElementById('addTargetModal').style.display='flex'">+ Add Target</button>
         <button class="btn" onclick="runCorrelations()">Correlate Targets</button>
         <button class="btn" onclick="toggleGraph()">Network Graph</button>
+        <a class="btn" href="/investigation/{{ investigation.case_number }}/summary">Summary</a>
         <button class="btn" onclick="document.getElementById('reportModal').style.display='flex'">Generate Report</button>
         <button class="btn" onclick="toggleNotes()">Notes</button>
         <button class="btn btn-primary" onclick="bulkRunAll(this)">Run All Targets</button>

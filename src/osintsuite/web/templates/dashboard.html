@@ -40,6 +40,7 @@
                     <th>Case #</th>
                     <th>Title</th>
                     <th>Status</th>
+                    <th>Priority</th>
                     <th>Targets</th>
                     <th>Findings</th>
                     <th>Created</th>
@@ -52,11 +53,13 @@
                     <td><a href="/investigation/{{ item.inv.case_number }}"><strong>{{ item.inv.case_number }}</strong></a></td>
                     <td>{{ item.inv.title }}</td>
                     <td><span class="badge badge-{{ item.inv.status }}">{{ item.inv.status }}</span></td>
+                    <td><span class="badge badge-{{ item.inv.priority }}">{{ item.inv.priority }}</span></td>
                     <td style="color: var(--dim);">{{ item.target_count }}</td>
                     <td style="color: var(--dim);">{{ item.finding_count }}</td>
                     <td style="color: var(--dim);">{{ item.inv.created_at.strftime('%Y-%m-%d') }}</td>
                     <td style="display: flex; gap: 0.4rem;">
                         <a href="/investigation/{{ item.inv.case_number }}" class="btn btn-sm">View</a>
+                        <a href="/investigation/{{ item.inv.case_number }}/summary" class="btn btn-sm">Summary</a>
                         <button class="btn btn-sm btn-danger" onclick="deleteInvestigation('{{ item.inv.id }}', '{{ item.inv.case_number }}')">Del</button>
                     </td>
                 </tr>

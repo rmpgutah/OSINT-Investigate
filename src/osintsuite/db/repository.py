@@ -10,7 +10,7 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from osintsuite.db.models import Finding, Investigation, ModuleRun, Note, Report, Target
+from osintsuite.db.models import AuditLog, Finding, FindingLink, Investigation, ModuleRun, Note, Report, Target
 
 if TYPE_CHECKING:
     from osintsuite.modules.base import ModuleResult
@@ -260,3 +260,190 @@ class Repository:
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    # ── Audit Log ──────────────────────────────────────────────────
+
+    async def log_audit(
+        self,
+        entity_type: str,
+        entity_id: uuid.UUID,
+        action: str,
+        details: dict | None = None,
+    ) -> AuditLog:
+        entry = AuditLog(
+            entity_type=entity_type,
+            entity_id=entity_id,
+            action=action,
+            details=details or {},
+        )
+        self.session.add(entry)
+        await self.session.flush()
+        return entry
+
+    async def get_audit_log(
+        self,
+        entity_type: str | None = None,
+        entity_id: uuid.UUID | None = None,
+        limit: int = 50,
+    ) -> Sequence[AuditLog]:
+        stmt = select(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit)
+        if entity_type:
+            stmt = stmt.where(AuditLog.entity_type == entity_type)
+        if entity_id:
+            stmt = stmt.where(AuditLog.entity_id == entity_id)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    # ── Clone Investigation ────────────────────────────────────────
+
+    async def clone_investigation(self, investigation_id: uuid.UUID) -> Investigation:
+        original = await self.get_investigation_full(investigation_id)
+        if not original:
+            raise ValueError("Investigation not found")
+
+        # Create new investigation with copied metadata
+        new_inv = await self.create_investigation(
+            title=f"{original.title} (Clone)",
+            description=original.description,
+        )
+        # Copy new workflow fields
+        await self.update_investigation(
+            new_inv.id,
+            priority=original.priority,
+            assigned_to=original.assigned_to,
+            tags=list(original.tags) if original.tags else [],
+            classification=original.classification,
+        )
+
+        # Clone targets (structure only, no findings)
+        for target in original.targets:
+            await self.add_target(
+                investigation_id=new_inv.id,
+                target_type=target.target_type,
+                label=target.label,
+                full_name=target.full_name,
+                email=target.email,
+                phone=target.phone,
+                address=target.address,
+                date_of_birth=target.date_of_birth,
+                city=target.city,
+                state=target.state,
+                metadata_=dict(target.metadata_) if target.metadata_ else {},
+            )
+
+        await self.log_audit("investigation", new_inv.id, "created", {
+            "cloned_from": str(investigation_id),
+        })
+        return new_inv
+
+    # ── Investigation Timeline ─────────────────────────────────────
+
+    async def get_investigation_timeline(
+        self, investigation_id: uuid.UUID
+    ) -> list[dict]:
+        """Get all audit log entries, module runs, and finding creation dates sorted by time."""
+        events: list[dict] = []
+
+        # Audit log entries for the investigation itself
+        audit_entries = await self.get_audit_log(
+            entity_type="investigation", entity_id=investigation_id, limit=500
+        )
+        for entry in audit_entries:
+            events.append({
+                "type": "audit",
+                "action": entry.action,
+                "details": entry.details,
+                "timestamp": entry.created_at.isoformat() if entry.created_at else None,
+            })
+
+        # Get targets for this investigation
+        targets = await self.list_targets(investigation_id)
+        target_ids = [t.id for t in targets]
+
+        if target_ids:
+            # Module runs
+            stmt = (
+                select(ModuleRun)
+                .where(ModuleRun.target_id.in_(target_ids))
+                .order_by(ModuleRun.started_at.desc())
+            )
+            result = await self.session.execute(stmt)
+            for run in result.scalars().all():
+                events.append({
+                    "type": "module_run",
+                    "module_name": run.module_name,
+                    "status": run.status,
+                    "findings_count": run.findings_count,
+                    "timestamp": (run.started_at or run.completed_at).isoformat() if (run.started_at or run.completed_at) else None,
+                })
+
+            # Finding creation dates
+            stmt = (
+                select(Finding)
+                .where(Finding.target_id.in_(target_ids))
+                .order_by(Finding.created_at.desc())
+            )
+            result = await self.session.execute(stmt)
+            for finding in result.scalars().all():
+                events.append({
+                    "type": "finding_created",
+                    "title": finding.title,
+                    "module_name": finding.module_name,
+                    "source": finding.source,
+                    "timestamp": finding.created_at.isoformat() if finding.created_at else None,
+                })
+
+        # Sort all events by timestamp descending
+        events.sort(key=lambda e: e.get("timestamp") or "", reverse=True)
+        return events
+
+    # ── Finding Links ──────────────────────────────────────────────
+
+    async def link_findings(
+        self,
+        finding_a_id: uuid.UUID,
+        finding_b_id: uuid.UUID,
+        relationship: str,
+    ) -> FindingLink:
+        link = FindingLink(
+            finding_a_id=finding_a_id,
+            finding_b_id=finding_b_id,
+            relationship_type=relationship,
+        )
+        self.session.add(link)
+        await self.session.flush()
+        return link
+
+    async def get_finding_links(self, finding_id: uuid.UUID) -> Sequence[FindingLink]:
+        stmt = select(FindingLink).where(
+            (FindingLink.finding_a_id == finding_id) | (FindingLink.finding_b_id == finding_id)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    # ── Deduplication ──────────────────────────────────────────────
+
+    async def deduplicate_findings(self, target_id: uuid.UUID) -> dict:
+        """Find findings with same title+source, keep highest confidence, delete rest."""
+        findings = await self.get_findings_by_target(target_id)
+
+        # Group by (title, source)
+        groups: dict[tuple, list[Finding]] = {}
+        for f in findings:
+            key = (f.title, f.source)
+            groups.setdefault(key, []).append(f)
+
+        removed = 0
+        kept = 0
+        for key, group in groups.items():
+            if len(group) <= 1:
+                kept += len(group)
+                continue
+            # Sort by confidence descending (None treated as -1)
+            group.sort(key=lambda x: x.confidence if x.confidence is not None else -1, reverse=True)
+            kept += 1
+            for dup in group[1:]:
+                await self.delete_finding(dup.id)
+                removed += 1
+
+        return {"kept": kept, "removed": removed}
