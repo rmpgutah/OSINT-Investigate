@@ -74,6 +74,25 @@
 .refresh-btn.spinning svg { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* Floating section nav */
+.section-nav { position: fixed; right: 1.5rem; top: 50%; transform: translateY(-50%); z-index: 100; display: flex; flex-direction: column; gap: 0.5rem; }
+.section-nav a { display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: var(--dim); font-size: 0.72rem; padding: 0.3rem 0.6rem; border-radius: 4px; background: var(--card); border: 1px solid var(--border); transition: all 0.15s; white-space: nowrap; opacity: 0.7; }
+.section-nav a:hover, .section-nav a.active { border-color: var(--accent); color: var(--accent); opacity: 1; }
+.section-nav a .nav-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dim); flex-shrink: 0; transition: background 0.15s; }
+.section-nav a.active .nav-dot, .section-nav a:hover .nav-dot { background: var(--accent); }
+@media (max-width: 900px) { .section-nav { display: none; } }
+
+/* Risk score explanation tooltip */
+.risk-explanation { font-size: 0.72rem; color: var(--dim); cursor: pointer; margin-top: 0.25rem; position: relative; display: inline-block; }
+.risk-explanation .risk-tip { display: none; position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%); background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 0.6rem 0.8rem; width: 240px; font-size: 0.72rem; color: var(--fg); line-height: 1.5; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 50; white-space: normal; text-align: left; }
+.risk-explanation:hover .risk-tip, .risk-explanation.show-tip .risk-tip { display: block; }
+
+/* Stat comparison arrow */
+.stat-compare { font-size: 0.72rem; margin-top: 0.25rem; font-weight: 600; }
+.stat-compare.up { color: #22c55e; }
+.stat-compare.down { color: #ef4444; }
+.stat-compare.neutral { color: var(--dim); }
+
 @media print {
     .navbar, .sidebar, .footer, .fab, .btn, .toast, .cmd-palette-overlay, .share-btn { display: none !important; }
     .main-content { margin-left: 0 !important; padding: 0 !important; }
@@ -102,6 +121,15 @@
 <div class="classification-banner classification-{{ investigation.classification }}">
     {{ investigation.classification }}
 </div>
+
+<nav class="section-nav" id="sectionNav">
+    <a href="#sectionStats" data-section="sectionStats"><span class="nav-dot"></span>Stats</a>
+    <a href="#sectionCharts" data-section="sectionCharts"><span class="nav-dot"></span>Charts</a>
+    <a href="#sectionKeyFindings" data-section="sectionKeyFindings"><span class="nav-dot"></span>Key Findings</a>
+    <a href="#sectionEvidence" data-section="sectionEvidence"><span class="nav-dot"></span>Evidence</a>
+    <a href="#sectionCoverage" data-section="sectionCoverage"><span class="nav-dot"></span>Coverage</a>
+    <a href="#sectionMap" data-section="sectionMap"><span class="nav-dot"></span>Map</a>
+</nav>
 
 <div class="investigation-summary">
     <div class="page-header">
@@ -137,7 +165,7 @@
 
     {# Key findings highlight — top 5 highest-confidence #}
     {% if top_findings %}
-    <div class="section" style="margin-bottom: 1.5rem;">
+    <div class="section" id="sectionKeyFindings" style="margin-bottom: 1.5rem;">
         <h2 style="margin-bottom: 0.75rem;">Key Findings</h2>
         <div class="key-findings">
             {% for f in top_findings %}
@@ -169,33 +197,43 @@
     {% endif %}
 
     {# Stats grid #}
-    <div class="summary-stats">
+    <div class="summary-stats" id="sectionStats">
         <div class="summary-stat">
             <div class="stat-number" style="color: var(--accent);" id="statTargets">{{ total_targets }}</div>
             <div class="stat-label">Total Targets</div>
+            <div class="stat-compare neutral" id="cmpTargets"></div>
         </div>
         <div class="summary-stat">
             <div class="stat-number" style="color: var(--green);" id="statFindings">{{ total_findings }}</div>
             <div class="stat-label">Total Findings</div>
+            <div class="stat-compare neutral" id="cmpFindings"></div>
         </div>
         <div class="summary-stat">
             <div class="stat-number" style="color: var(--yellow);" id="statFlagged">{{ flagged_count }}</div>
             <div class="stat-label">Flagged</div>
+            <div class="stat-compare neutral" id="cmpFlagged"></div>
         </div>
         <div class="summary-stat">
             <div class="stat-number" style="color: var(--dim);" id="statReviewed">{{ reviewed_count }}</div>
             <div class="stat-label">Reviewed</div>
+            <div class="stat-compare neutral" id="cmpReviewed"></div>
         </div>
         <div class="summary-stat" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
             <div class="risk-gauge" style="--risk: {{ risk_score }}; --gauge-color: {% if risk_score > 70 %}#ef4444{% elif risk_score > 30 %}#f59e0b{% else %}#22c55e{% endif %};">
                 <div class="risk-gauge-inner" style="color: {% if risk_score > 70 %}#ef4444{% elif risk_score > 30 %}#f59e0b{% else %}#22c55e{% endif %};">{{ risk_score }}</div>
             </div>
             <div class="stat-label" style="margin-top: 0.5rem;">Risk Score</div>
+            <div class="risk-explanation" onclick="this.classList.toggle('show-tip')">
+                &#9432; How is this calculated?
+                <div class="risk-tip">
+                    Based on flagged findings (&times;5), high-confidence findings (&times;2), and total findings (&times;0.5), capped at 100. Higher scores indicate greater investigative concern.
+                </div>
+            </div>
         </div>
     </div>
 
     {# Charts #}
-    <div class="chart-grid">
+    <div class="chart-grid" id="sectionCharts">
         <div class="chart-card">
             <h3>Findings per Module</h3>
             <button class="chart-export-btn" onclick="exportChart('moduleChart', 'findings-per-module')" title="Download as PNG">&#11015; PNG</button>
@@ -230,7 +268,7 @@
     </div>
 
     {# Module coverage chart #}
-    <div class="card coverage-chart" style="margin-bottom: 2rem;">
+    <div class="card coverage-chart" id="sectionCoverage" style="margin-bottom: 2rem;">
         <h3>Module Coverage by Category</h3>
         <div id="coverageChart" style="padding: 0.75rem 0;">
             <div style="color: var(--muted); font-size: 0.85rem; text-align: center; padding: 1rem;">Loading coverage data...</div>
@@ -294,7 +332,7 @@
 
     {# Evidence Chain #}
     {% if flagged_findings_chain %}
-    <div class="section" style="margin-top: 2rem;">
+    <div class="section" id="sectionEvidence" style="margin-top: 2rem;">
         <h2 style="margin-bottom: 1rem;">Evidence Chain</h2>
         {% for f in flagged_findings_chain %}
         <div class="card" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; margin-bottom: 0.5rem;">
@@ -310,7 +348,7 @@
     {% endif %}
 
     {# Map #}
-    <div class="card" style="margin-bottom: 2rem;">
+    <div class="card" id="sectionMap" style="margin-bottom: 2rem;">
         <h3>Geolocated Findings</h3>
         <div id="summaryMap"></div>
         <p id="mapEmpty" style="display: none; color: var(--muted); text-align: center; padding: 1.5rem;">No geolocated findings available.</p>
@@ -331,9 +369,86 @@
 const INV_ID = "{{ investigation.id }}";
 const CASE_NUM = "{{ investigation.case_number }}";
 
+// Consistent color palette for all charts
+var CHART_PALETTE = ['#3b82f6','#8b5cf6','#22c55e','#f59e0b','#ef4444','#06b6d4','#ec4899','#f97316'];
+
 // Chart.js global defaults for dark theme
 Chart.defaults.color = '#9ca3b0';
 Chart.defaults.borderColor = '#2d3343';
+
+// ── Floating section nav scroll spy ────────────────────────────────
+(function() {
+    var sections = ['sectionStats','sectionCharts','sectionKeyFindings','sectionEvidence','sectionCoverage','sectionMap'];
+    var navLinks = document.querySelectorAll('#sectionNav a');
+
+    // Smooth scroll on click
+    navLinks.forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            var target = document.getElementById(link.getAttribute('data-section'));
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+
+    // Highlight current section on scroll
+    function updateActiveNav() {
+        var scrollY = window.scrollY + 120;
+        var current = '';
+        sections.forEach(function(id) {
+            var sec = document.getElementById(id);
+            if (sec && sec.offsetTop <= scrollY) current = id;
+        });
+        navLinks.forEach(function(link) {
+            if (link.getAttribute('data-section') === current) {
+                link.classList.add('active');
+            } else {
+                link.classList.remove('active');
+            }
+        });
+    }
+    window.addEventListener('scroll', updateActiveNav, { passive: true });
+    updateActiveNav();
+})();
+
+// ── Comparison with average across all cases ───────────────────────
+function renderStatComparison(elemId, currentVal, avgVal) {
+    var el2 = document.getElementById(elemId);
+    if (!el2) return;
+    if (avgVal === 0 || avgVal === null || avgVal === undefined) { el2.textContent = ''; return; }
+    var pct = Math.round(((currentVal - avgVal) / avgVal) * 100);
+    if (pct > 0) {
+        el2.className = 'stat-compare up';
+        el2.textContent = '\u25B2 ' + pct + '% above avg';
+    } else if (pct < 0) {
+        el2.className = 'stat-compare down';
+        el2.textContent = '\u25BC ' + Math.abs(pct) + '% below avg';
+    } else {
+        el2.className = 'stat-compare neutral';
+        el2.textContent = '\u2014 at avg';
+    }
+}
+
+async function loadGlobalComparisons(currentTargets, currentFindings, currentFlagged, currentReviewed) {
+    try {
+        var resp = await fetch(BASE + '/api/modules/activity');
+        if (!resp.ok) return;
+        var activity = await resp.json();
+        // activity is an array of investigation summaries
+        if (!activity || !activity.length) return;
+        var totalInv = activity.length;
+        var sumTargets = 0, sumFindings = 0, sumFlagged = 0, sumReviewed = 0;
+        activity.forEach(function(inv) {
+            sumTargets += inv.target_count || 0;
+            sumFindings += inv.findings_count || 0;
+            sumFlagged += inv.flagged_count || 0;
+            sumReviewed += inv.reviewed_count || 0;
+        });
+        renderStatComparison('cmpTargets', currentTargets, sumTargets / totalInv);
+        renderStatComparison('cmpFindings', currentFindings, sumFindings / totalInv);
+        renderStatComparison('cmpFlagged', currentFlagged, sumFlagged / totalInv);
+        renderStatComparison('cmpReviewed', currentReviewed, sumReviewed / totalInv);
+    } catch(e) { /* silently fail */ }
+}
 
 // ── Load stats and render charts ────────────────────────────────────
 async function loadSummaryData() {
@@ -349,6 +464,8 @@ async function loadSummaryData() {
         renderFindingTypeChart(data.findings_by_source || data.findings_by_module);
 
         // Update stat numbers on refresh
+        var curTargets = {{ total_targets }}, curFindings = {{ total_findings }};
+        var curFlagged = {{ flagged_count }}, curReviewed = {{ reviewed_count }};
         if (data.target_comparison) {
             var totalF = 0, flaggedF = 0;
             data.target_comparison.forEach(function(t) { totalF += t.findings_count || 0; flaggedF += t.flagged_count || 0; });
@@ -358,16 +475,20 @@ async function loadSummaryData() {
             if (statFindings) statFindings.textContent = totalF;
             if (statFlagged) statFlagged.textContent = flaggedF;
             if (statTargets) statTargets.textContent = data.target_comparison.length;
+            curTargets = data.target_comparison.length;
+            curFindings = totalF;
+            curFlagged = flaggedF;
         }
+        // Load global comparisons
+        loadGlobalComparisons(curTargets, curFindings, curFlagged, curReviewed);
     } catch (e) {
         showToast('Failed to load summary data', 'error');
     }
 }
 
 function renderModuleChart(byModule) {
-    const labels = Object.keys(byModule).map(function(n) { return n.replace(/_/g, ' '); });
-    const values = Object.values(byModule);
-    const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', '#f97316', '#ec4899', '#14b8a6', '#8b5cf6'];
+    var labels = Object.keys(byModule).map(function(n) { return n.replace(/_/g, ' '); });
+    var values = Object.values(byModule);
 
     chartInstances['moduleChart'] = new Chart(document.getElementById('moduleChart'), {
         type: 'bar',
@@ -376,7 +497,7 @@ function renderModuleChart(byModule) {
             datasets: [{
                 label: 'Findings',
                 data: values,
-                backgroundColor: values.map(function(_, i) { return colors[i % colors.length]; }),
+                backgroundColor: values.map(function(_, i) { return CHART_PALETTE[i % CHART_PALETTE.length]; }),
                 borderRadius: 4,
                 borderSkipped: false,
             }]
@@ -403,7 +524,7 @@ function renderConfidenceChart(byConf) {
             labels: ['High (>70%)', 'Medium (41-70%)', 'Low (0-40%)'],
             datasets: [{
                 data: [byConf.high, byConf.medium, byConf.low],
-                backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'],
+                backgroundColor: [CHART_PALETTE[2], CHART_PALETTE[3], CHART_PALETTE[4]],
                 borderColor: '#21252f',
                 borderWidth: 3,
             }]
@@ -430,12 +551,12 @@ function renderTimelineChart(overTime) {
             datasets: [{
                 label: 'Findings',
                 data: values,
-                borderColor: '#3b82f6',
+                borderColor: CHART_PALETTE[0],
                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
                 fill: true,
                 tension: 0.3,
                 pointRadius: 4,
-                pointBackgroundColor: '#3b82f6',
+                pointBackgroundColor: CHART_PALETTE[0],
             }]
         },
         options: {
@@ -710,9 +831,6 @@ function renderFindingTypeChart(byModule) {
     var entries = Object.entries(byModule).sort(function(a, b) { return b[1] - a[1]; });
     var labels = entries.map(function(e) { return e[0].replace(/_/g, ' '); });
     var values = entries.map(function(e) { return e[1]; });
-    var colors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', '#f97316', '#ec4899', '#14b8a6', '#8b5cf6',
-                  '#64748b', '#0ea5e9', '#d946ef', '#84cc16', '#f43f5e'];
-
     chartInstances['findingTypeChart'] = new Chart(canvas, {
         type: 'bar',
         data: {
@@ -720,7 +838,7 @@ function renderFindingTypeChart(byModule) {
             datasets: [{
                 label: 'Count',
                 data: values,
-                backgroundColor: values.map(function(_, i) { return colors[i % colors.length]; }),
+                backgroundColor: values.map(function(_, i) { return CHART_PALETTE[i % CHART_PALETTE.length]; }),
                 borderRadius: 4,
                 borderSkipped: false,
             }]

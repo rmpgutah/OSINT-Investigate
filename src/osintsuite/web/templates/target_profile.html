@@ -139,6 +139,15 @@ tr.reviewed { opacity: 0.6; }
 .info-item span.editable-value { cursor: pointer; padding: 0.1rem 0.3rem; border-radius: 3px; transition: background 0.15s; }
 .info-item span.editable-value:hover { background: var(--bg); }
 .target-edit-input { background: var(--bg); border: 1px solid var(--accent); border-radius: 4px; padding: 0.2rem 0.5rem; color: var(--text); font-size: 0.88rem; font-family: inherit; outline: none; width: 180px; }
+
+/* Confidence color bar */
+.conf-bar { width: 100%; max-width: 80px; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; display: inline-block; vertical-align: middle; }
+.conf-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+
+/* Scroll-to-top button */
+.scroll-top-btn { position: fixed; bottom: 5rem; right: 2rem; width: 42px; height: 42px; border-radius: 50%; background: var(--card); border: 1px solid var(--border); color: var(--dim); cursor: pointer; font-size: 1.2rem; display: none; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); z-index: 88; transition: all 0.2s; }
+.scroll-top-btn:hover { background: var(--hover); color: var(--accent); border-color: var(--accent); }
+.scroll-top-btn.visible { display: flex; }
 </style>
 {% endblock %}
 
@@ -317,6 +326,7 @@ tr.reviewed { opacity: 0.6; }
             </div>
             <div style="flex: 1;"></div>
             <span id="filterCount" style="color: var(--muted); font-size: 0.78rem;"></span>
+            <button class="btn btn-sm" onclick="exportFilteredFindings('csv')" title="Export visible findings as CSV" style="font-size:0.78rem;">Export Filtered</button>
         </div>
 
         <!-- Finding timeline mini-chart (last 7 days) -->
@@ -373,7 +383,7 @@ tr.reviewed { opacity: 0.6; }
                         </td>
                         <td>
                             {% if finding.confidence is not none %}
-                            <span class="confidence confidence-{{ 'high' if finding.confidence > 70 else 'medium' if finding.confidence > 40 else 'low' }}">{{ finding.confidence }}%</span>
+                            <div class="conf-bar" title="{{ finding.confidence }}% confidence"><div class="conf-fill" style="width:{{ finding.confidence }}%;background:{{ 'var(--green)' if finding.confidence > 70 else 'var(--yellow)' if finding.confidence > 40 else 'var(--red)' }};"></div></div>
                             {% else %}
                             <span style="color: var(--muted);">\u2014</span>
                             {% endif %}
@@ -405,6 +415,9 @@ tr.reviewed { opacity: 0.6; }
         {% endif %}
     </div>
 </div>
+
+<!-- Scroll-to-top button -->
+<button class="scroll-top-btn" id="scrollTopBtn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">&#8679;</button>
 
 <!-- Slideout overlay + panel -->
 <div class="slideout-overlay" id="slideoutOverlay" onclick="closeSlideout()"></div>
@@ -562,8 +575,15 @@ async function bulkAction(action) {
     const checked = document.querySelectorAll('.finding-cb:checked');
     if (!checked.length) return;
 
-    if (action === 'delete' && !confirm('Delete ' + checked.length + ' finding(s)?')) return;
+    if (action === 'delete') {
+        confirmAction('Delete ' + checked.length + ' finding(s)?', function() { executeBulkAction(action, checked); });
+        return;
+    }
 
+    executeBulkAction(action, checked);
+}
+
+async function executeBulkAction(action, checked) {
     let success = 0;
     for (const cb of checked) {
         const id = cb.dataset.findingId;
@@ -631,16 +651,17 @@ async function toggleReview(findingId, btn) {
 
 // ── Delete finding ───────────────────────────────────────────────
 async function deleteFinding(findingId, btn) {
-    if (!confirm('Delete this finding?')) return;
-    try {
-        const resp = await fetch(BASE + '/api/findings/' + findingId, { method: 'DELETE' });
-        if (resp.ok) {
-            const row = btn.closest('tr');
-            if (row) row.remove();
-            showToast('Finding deleted');
-            applyPagination();
-        } else { showToast('Failed to delete', 'error'); }
-    } catch(e) { showToast('Network error', 'error'); }
+    confirmAction('Delete this finding?', async function() {
+        try {
+            const resp = await fetch(BASE + '/api/findings/' + findingId, { method: 'DELETE' });
+            if (resp.ok) {
+                const row = btn.closest('tr');
+                if (row) row.remove();
+                showToast('Finding deleted');
+                applyPagination();
+            } else { showToast('Failed to delete', 'error'); }
+        } catch(e) { showToast('Network error', 'error'); }
+    });
 }
 
 // ── Slideout finding detail ─────────────────────────────────────
@@ -1323,6 +1344,88 @@ function editTargetField(field, spanEl) {
         if (ev.key === 'Escape') finishEdit(false);
     });
     input.addEventListener('blur', function() { finishEdit(true); });
+}
+
+// ── Scroll-to-top button visibility ─────────────────────────────
+(function() {
+    var scrollBtn = document.getElementById('scrollTopBtn');
+    if (!scrollBtn) return;
+    window.addEventListener('scroll', function() {
+        if (window.scrollY > 500) {
+            scrollBtn.classList.add('visible');
+        } else {
+            scrollBtn.classList.remove('visible');
+        }
+    });
+})();
+
+// ── Double-click finding row title to open slideout ─────────────
+(function() {
+    document.querySelectorAll('#findingsTable tbody tr.finding-row').forEach(function(row) {
+        var titleTd = row.querySelectorAll('td')[4]; // title column (5th td)
+        if (titleTd) {
+            titleTd.addEventListener('dblclick', function(e) {
+                e.stopPropagation();
+                var findingId = row.dataset.id;
+                if (findingId) openSlideout(findingId);
+            });
+            titleTd.style.cursor = 'pointer';
+            titleTd.title = 'Double-click to open details';
+        }
+    });
+})();
+
+// ── Export filtered findings as CSV ─────────────────────────────
+function exportFilteredFindings(format) {
+    var rows = document.querySelectorAll('#findingsTable tbody tr.finding-row');
+    var visibleData = [];
+    rows.forEach(function(row) {
+        if (row.style.display === 'none' || row.dataset._filterPass === 'false') return;
+        visibleData.push({
+            module: row.dataset.module || '',
+            source: row.dataset.source || '',
+            title: row.dataset.title || '',
+            confidence: row.dataset.confidence || '',
+            flagged: row.dataset.flagged || 'false',
+            reviewed: row.dataset.reviewed || 'false',
+            date: row.dataset.date || ''
+        });
+    });
+
+    if (!visibleData.length) {
+        showToast('No visible findings to export', 'error');
+        return;
+    }
+
+    var blob;
+    var filename;
+    if (format === 'json') {
+        blob = new Blob([JSON.stringify(visibleData, null, 2)], {type: 'application/json'});
+        filename = 'findings_filtered.json';
+    } else {
+        var csvLines = ['Module,Source,Title,Confidence,Flagged,Reviewed,Date'];
+        visibleData.forEach(function(d) {
+            csvLines.push([
+                '"' + d.module.replace(/"/g, '""') + '"',
+                '"' + d.source.replace(/"/g, '""') + '"',
+                '"' + d.title.replace(/"/g, '""') + '"',
+                d.confidence,
+                d.flagged,
+                d.reviewed,
+                '"' + d.date + '"'
+            ].join(','));
+        });
+        blob = new Blob([csvLines.join('\n')], {type: 'text/csv'});
+        filename = 'findings_filtered.csv';
+    }
+
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(visibleData.length + ' findings exported as ' + format.toUpperCase());
 }
 
 // Init

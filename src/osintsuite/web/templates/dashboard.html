@@ -2,6 +2,94 @@
 
 {% block title %}Dashboard — OSINT Suite{% endblock %}
 
+{% block head %}
+<style>
+/* ── Dashboard: Stat card entrance stagger ────────────────────── */
+.stat-card {
+    animation: fadeSlideUp 0.4s ease-out backwards;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.stat-card:nth-child(1) { animation-delay: 0s; }
+.stat-card:nth-child(2) { animation-delay: 0.05s; }
+.stat-card:nth-child(3) { animation-delay: 0.1s; }
+.stat-card:nth-child(4) { animation-delay: 0.15s; }
+
+/* ── Dashboard: Hover lift on stat cards ──────────────────────── */
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+}
+.light-theme .stat-card:hover {
+    box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+}
+
+/* ── Dashboard: Table row entrance animation ──────────────────── */
+@keyframes rowSlide {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+.data-table tbody tr {
+    animation: rowSlide 0.3s ease-out backwards;
+}
+.data-table tbody tr:nth-child(1)  { animation-delay: 0.02s; }
+.data-table tbody tr:nth-child(2)  { animation-delay: 0.04s; }
+.data-table tbody tr:nth-child(3)  { animation-delay: 0.06s; }
+.data-table tbody tr:nth-child(4)  { animation-delay: 0.08s; }
+.data-table tbody tr:nth-child(5)  { animation-delay: 0.10s; }
+.data-table tbody tr:nth-child(6)  { animation-delay: 0.12s; }
+.data-table tbody tr:nth-child(7)  { animation-delay: 0.14s; }
+.data-table tbody tr:nth-child(8)  { animation-delay: 0.16s; }
+.data-table tbody tr:nth-child(9)  { animation-delay: 0.18s; }
+.data-table tbody tr:nth-child(10) { animation-delay: 0.20s; }
+.data-table tbody tr:nth-child(11) { animation-delay: 0.22s; }
+.data-table tbody tr:nth-child(12) { animation-delay: 0.24s; }
+.data-table tbody tr:nth-child(13) { animation-delay: 0.26s; }
+.data-table tbody tr:nth-child(14) { animation-delay: 0.28s; }
+.data-table tbody tr:nth-child(15) { animation-delay: 0.30s; }
+.data-table tbody tr:nth-child(16) { animation-delay: 0.32s; }
+.data-table tbody tr:nth-child(17) { animation-delay: 0.34s; }
+.data-table tbody tr:nth-child(18) { animation-delay: 0.36s; }
+.data-table tbody tr:nth-child(19) { animation-delay: 0.38s; }
+.data-table tbody tr:nth-child(20) { animation-delay: 0.40s; }
+
+/* ── Dashboard: Kanban card polish ────────────────────────────── */
+.kanban-card {
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    border-top: 3px solid transparent;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+.kanban-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+}
+.kanban-card.dragging {
+    opacity: 0.6;
+    transform: rotate(2deg) scale(1.02);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+}
+.kanban-col[data-status="open"] .kanban-card   { border-top-color: var(--green); }
+.kanban-col[data-status="active"] .kanban-card  { border-top-color: var(--yellow); }
+.kanban-col[data-status="closed"] .kanban-card  { border-top-color: var(--muted); }
+.kanban-col[data-status="archived"] .kanban-card { border-top-color: #6366f1; }
+.light-theme .kanban-card {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+.light-theme .kanban-card:hover {
+    box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+/* ── Dashboard: Activity timeline pulse on most recent ────────── */
+@keyframes timelinePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
+    50%      { box-shadow: 0 0 0 6px rgba(59,130,246,0); }
+}
+.timeline-item:first-child::before {
+    animation: timelinePulse 2s ease infinite;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="dashboard">
     <h1 style="margin-bottom: 0.25rem;">Investigation Dashboard</h1>

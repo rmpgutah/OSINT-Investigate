@@ -107,7 +107,7 @@
                 <span class="bc-sep">&#9656;</span>
                 <span class="bc-current">{{ investigation.case_number }}</span>
             </nav>
-            <h1>{{ investigation.case_number }}</h1>
+            <h1 style="display:inline-flex;align-items:center;gap:0.5rem;">{{ investigation.case_number }} <button onclick="copyToClipboard('{{ investigation.case_number }}', 'Case number')" title="Copy case number" style="background:none;border:1px solid var(--border);border-radius:4px;padding:0.2rem 0.4rem;cursor:pointer;color:var(--dim);font-size:0.75rem;line-height:1;vertical-align:middle;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--dim)'">&#128203;</button></h1>
             <p class="subtitle" id="invTitle">{{ investigation.title }}</p>
             <button class="btn btn-sm" style="margin-top: 0.4rem;" onclick="document.getElementById('editInvModal').style.display='flex'">Edit</button>
         </div>
@@ -244,7 +244,7 @@
             </div>
             <div class="target-grid" id="targetGrid">
                 {% for target in investigation.targets %}
-                <div class="card target-card {% if investigation.targets|length > 5 %}target-compact{% endif %}" id="target-{{ target.id }}" data-target-id="{{ target.id }}">
+                <div class="card target-card {% if investigation.targets|length > 5 %}target-compact{% endif %}" id="target-{{ target.id }}" data-target-id="{{ target.id }}" draggable="true" ondragstart="targetDragStart(event)" ondragover="targetDragOver(event)" ondrop="targetDrop(event)" ondragend="targetDragEnd(event)">
                     <div class="target-header">
                         <span class="badge badge-type">{{ target.target_type }}</span>
                         <a href="{{ request.scope.get('root_path', '') }}/target/{{ target.id }}/profile" class="target-label-link" data-target-id="{{ target.id }}">{{ target.label }}</a>
@@ -432,11 +432,13 @@
             </div>
             <div class="form-group">
                 <label>Label</label>
-                <input type="text" id="targetLabel" required placeholder="Display name for this target">
+                <input type="text" id="targetLabel" required placeholder="Display name for this target" maxlength="255" oninput="updateCharCount(this, 'targetLabelCount')">
+                <small id="targetLabelCount" style="color:var(--muted);font-size:0.75rem;">0/255 characters</small>
             </div>
             <div class="form-group">
                 <label>Full Name</label>
-                <input type="text" id="targetName" placeholder="John Doe">
+                <input type="text" id="targetName" placeholder="John Doe" maxlength="255" oninput="updateCharCount(this, 'targetNameCount')">
+                <small id="targetNameCount" style="color:var(--muted);font-size:0.75rem;">0/255 characters</small>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                 <div class="form-group">
@@ -472,11 +474,13 @@
         <h3>Edit Investigation</h3>
         <div class="form-group">
             <label>Title</label>
-            <input type="text" id="editTitle" value="{{ investigation.title }}">
+            <input type="text" id="editTitle" value="{{ investigation.title }}" maxlength="255" oninput="updateCharCount(this, 'editTitleCount')">
+            <small id="editTitleCount" style="color:var(--muted);font-size:0.75rem;">{{ (investigation.title|length) }}/255 characters</small>
         </div>
         <div class="form-group">
             <label>Description</label>
-            <textarea id="editDesc" rows="3">{{ investigation.description or '' }}</textarea>
+            <textarea id="editDesc" rows="3" maxlength="255" oninput="updateCharCount(this, 'editDescCount')">{{ investigation.description or '' }}</textarea>
+            <small id="editDescCount" style="color:var(--muted);font-size:0.75rem;">{{ ((investigation.description or '')|length) }}/255 characters</small>
         </div>
         <div class="form-actions">
             <button class="btn" onclick="document.getElementById('editInvModal').style.display='none'">Cancel</button>
@@ -522,12 +526,31 @@ function switchMainTab(name, btn) {
     btn.classList.add('active');
     document.getElementById('maintab-' + name).classList.add('active');
 
+    // Save active tab to sessionStorage
+    try { sessionStorage.setItem('inv_active_tab_' + INV_ID, name); } catch(e) {}
+
     // Lazy-load tab content
     if (name === 'findings' && !findingsLoaded) loadAllFindings();
     if (name === 'graph' && !graphLoaded) loadGraph();
     if (name === 'timeline' && !timelineLoaded) loadTimeline();
     if (name === 'notes' && !notesLoaded) { loadNotes(); notesLoaded = true; }
 }
+
+// Restore last active tab from sessionStorage
+(function() {
+    try {
+        var savedTab = sessionStorage.getItem('inv_active_tab_' + INV_ID);
+        if (savedTab) {
+            var btns = document.querySelectorAll('#mainTabNav .tab-btn');
+            btns.forEach(function(b) {
+                if (b.textContent.trim().toLowerCase().replace(/\s*\(.*\)/, '') === savedTab ||
+                    b.textContent.trim().toLowerCase().indexOf(savedTab) === 0) {
+                    b.click();
+                }
+            });
+        }
+    } catch(e) {}
+})();
 
 // ── Status change ────────────────────────────────────────────────
 async function changeStatus(newStatus) {
@@ -801,27 +824,29 @@ async function saveInvestigation() {
 
 // ── Delete investigation ─────────────────────────────────────────
 async function deleteInvestigation() {
-    if (!confirm('Delete this entire investigation? All targets, findings, and reports will be permanently removed.')) return;
-    try {
-        const resp = await fetch(BASE + '/api/investigations/' + INV_ID, { method: 'DELETE' });
-        if (resp.ok) {
-            showToast('Investigation deleted');
-            setTimeout(() => { window.location.href = BASE + '/'; }, 800);
-        } else { showToast('Failed to delete', 'error'); }
-    } catch(e) { showToast('Network error', 'error'); }
+    confirmAction('Delete this entire investigation? All targets, findings, and reports will be permanently removed.', async function() {
+        try {
+            const resp = await fetch(BASE + '/api/investigations/' + INV_ID, { method: 'DELETE' });
+            if (resp.ok) {
+                showToast('Investigation deleted');
+                setTimeout(() => { window.location.href = BASE + '/'; }, 800);
+            } else { showToast('Failed to delete', 'error'); }
+        } catch(e) { showToast('Network error', 'error'); }
+    });
 }
 
 // ── Delete target ────────────────────────────────────────────────
 async function deleteTarget(targetId, label) {
-    if (!confirm('Delete target "' + label + '" and all its findings?')) return;
-    try {
-        const resp = await fetch(BASE + '/api/targets/' + targetId, { method: 'DELETE' });
-        if (resp.ok) {
-            const card = document.getElementById('target-' + targetId);
-            if (card) card.remove();
-            showToast('Target "' + label + '" deleted');
-        } else { showToast('Failed to delete target', 'error'); }
-    } catch(e) { showToast('Network error', 'error'); }
+    confirmAction('Delete target "' + label + '" and all its findings?', async function() {
+        try {
+            const resp = await fetch(BASE + '/api/targets/' + targetId, { method: 'DELETE' });
+            if (resp.ok) {
+                const card = document.getElementById('target-' + targetId);
+                if (card) card.remove();
+                showToast('Target "' + label + '" deleted');
+            } else { showToast('Failed to delete target', 'error'); }
+        } catch(e) { showToast('Network error', 'error'); }
+    });
 }
 
 // ── Bulk run all targets with progress ──────────────────────────
@@ -1296,6 +1321,38 @@ function updateInvestigationProgress() {
     });
 }
 
+// ── Target Card Drag Reorder (cosmetic) ─────────────────────────
+var _draggedCard = null;
+function targetDragStart(e) {
+    _draggedCard = e.currentTarget;
+    _draggedCard.style.opacity = '0.4';
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', '');
+}
+function targetDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    var target = e.currentTarget;
+    if (target !== _draggedCard && target.classList.contains('target-card')) {
+        var grid = document.getElementById('targetGrid');
+        var cards = Array.from(grid.children);
+        var dragIdx = cards.indexOf(_draggedCard);
+        var dropIdx = cards.indexOf(target);
+        if (dragIdx < dropIdx) {
+            grid.insertBefore(_draggedCard, target.nextSibling);
+        } else {
+            grid.insertBefore(_draggedCard, target);
+        }
+    }
+}
+function targetDrop(e) {
+    e.preventDefault();
+}
+function targetDragEnd(e) {
+    if (_draggedCard) _draggedCard.style.opacity = '1';
+    _draggedCard = null;
+}
+
 // ── Target View Toggle (Compact / Expanded) ─────────────────────
 function setTargetView(mode) {
     var cards = document.querySelectorAll('.target-card');
@@ -1339,25 +1396,25 @@ async function runCategoryAll(category) {
     document.getElementById('runDropdownMenu').style.display = 'none';
     var catModules = MODULE_CATEGORIES[category] || [];
     if (!catModules.length) { showToast('No modules in category: ' + category, 'error'); return; }
-    if (!confirm('Run all ' + CAT_LABELS[category] + ' modules on all targets?')) return;
+    confirmAction('Run all ' + CAT_LABELS[category] + ' modules on all targets?', async function() {
+        showToast('Running ' + CAT_LABELS[category] + ' modules...');
 
-    showToast('Running ' + CAT_LABELS[category] + ' modules...');
-
-    for (var i = 0; i < TARGET_IDS.length; i++) {
-        var tid = TARGET_IDS[i];
-        for (var j = 0; j < catModules.length; j++) {
-            try {
-                await fetch(BASE + '/api/targets/' + tid + '/run', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({module_name: catModules[j]})
-                });
-            } catch(e) { /* continue */ }
+        for (var i = 0; i < TARGET_IDS.length; i++) {
+            var tid = TARGET_IDS[i];
+            for (var j = 0; j < catModules.length; j++) {
+                try {
+                    await fetch(BASE + '/api/targets/' + tid + '/run', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({module_name: catModules[j]})
+                    });
+                } catch(e) { /* continue */ }
+            }
         }
-    }
 
-    showToast(CAT_LABELS[category] + ' modules complete. Refreshing...');
-    setTimeout(function() { window.location.reload(); }, 1500);
+        showToast(CAT_LABELS[category] + ' modules complete. Refreshing...');
+        setTimeout(function() { window.location.reload(); }, 1500);
+    });
 }
 
 // ── Patched loadModulePills to also build category badges ───────
@@ -1459,8 +1516,8 @@ runAllModules = async function(targetId, btn) {
 
 // Patch bulkRunAll to auto-refresh
 var _origBulkRunAll = bulkRunAll;
-bulkRunAll = async function(btn) {
-    if (!confirm('Run all modules on ALL targets? This may take a while.')) return;
+bulkRunAll = function(btn) {
+    confirmAction('Run all modules on ALL targets? This may take a while.', async function() {
     btn.disabled = true;
     btn.textContent = 'Running...';
     var panel = document.getElementById('progressPanel');
@@ -1519,6 +1576,7 @@ bulkRunAll = async function(btn) {
             refreshAfterModuleRun();
         }
     }, 2000);
+    });
 };
 
 // ── 4. Investigation Metadata Click-to-Edit ────────────────────
@@ -1611,6 +1669,17 @@ async function exportInvestigation() {
     a.click();
     URL.revokeObjectURL(url);
     showToast('Case exported');
+}
+
+// ── Character count utility ─────────────────────────────────────
+function updateCharCount(inputEl, countElId) {
+    var countEl = document.getElementById(countElId);
+    if (countEl) {
+        var len = inputEl.value.length;
+        var max = parseInt(inputEl.getAttribute('maxlength')) || 255;
+        countEl.textContent = len + '/' + max + ' characters';
+        countEl.style.color = len >= max ? 'var(--red)' : len > max * 0.8 ? 'var(--yellow)' : 'var(--muted)';
+    }
 }
 
 // ── Init ─────────────────────────────────────────────────────────
