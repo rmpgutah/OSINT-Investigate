@@ -70,6 +70,34 @@ from osintsuite.modules.cell_tower import CellTowerModule
 from osintsuite.modules.public_cameras import PublicCamerasModule
 from osintsuite.modules.radio_freq import RadioFreqModule
 
+# v0.4 — Life History: Criminal Justice
+from osintsuite.modules.criminal_records import CriminalRecordsModule
+from osintsuite.modules.warrant_search import WarrantSearchModule
+from osintsuite.modules.arrest_records import ArrestRecordsModule
+from osintsuite.modules.inmate_search import InmateSearchModule
+from osintsuite.modules.parole_probation import ParoleProbationModule
+
+# v0.4 — Life History: Personal Records
+from osintsuite.modules.education_history import EducationHistoryModule
+from osintsuite.modules.employment_history import EmploymentHistoryModule
+from osintsuite.modules.military_records import MilitaryRecordsModule
+from osintsuite.modules.marriage_divorce import MarriageDivorceModule
+from osintsuite.modules.immigration_records import ImmigrationRecordsModule
+
+# v0.4 — Life History: Financial & Social
+from osintsuite.modules.financial_records import FinancialRecordsModule
+from osintsuite.modules.associates_network import AssociatesNetworkModule
+from osintsuite.modules.real_estate_deep import RealEstateDeepModule
+from osintsuite.modules.travel_history import TravelHistoryModule
+from osintsuite.modules.alias_detection import AliasDetectionModule
+
+# v0.4 — Life History: Digital & Genealogy
+from osintsuite.modules.genealogy_records import GenealogyRecordsModule
+from osintsuite.modules.digital_footprint import DigitalFootprintModule
+from osintsuite.modules.phone_deep import PhoneDeepModule
+from osintsuite.modules.email_deep import EmailDeepModule
+from osintsuite.modules.life_event_timeline import LifeEventTimelineModule
+
 if TYPE_CHECKING:
     pass
 
@@ -157,6 +185,34 @@ class InvestigationEngine:
         self.modules["cell_tower"] = CellTowerModule(client, limiter)
         self.modules["public_cameras"] = PublicCamerasModule(client, limiter)
         self.modules["radio_freq"] = RadioFreqModule(client, limiter)
+
+        # v0.4 — Life History: Criminal Justice
+        self.modules["criminal_records"] = CriminalRecordsModule(client, limiter)
+        self.modules["warrant_search"] = WarrantSearchModule(client, limiter)
+        self.modules["arrest_records"] = ArrestRecordsModule(client, limiter)
+        self.modules["inmate_search"] = InmateSearchModule(client, limiter)
+        self.modules["parole_probation"] = ParoleProbationModule(client, limiter)
+
+        # v0.4 — Life History: Personal Records
+        self.modules["education_history"] = EducationHistoryModule(client, limiter)
+        self.modules["employment_history"] = EmploymentHistoryModule(client, limiter)
+        self.modules["military_records"] = MilitaryRecordsModule(client, limiter)
+        self.modules["marriage_divorce"] = MarriageDivorceModule(client, limiter)
+        self.modules["immigration_records"] = ImmigrationRecordsModule(client, limiter)
+
+        # v0.4 — Life History: Financial & Social
+        self.modules["financial_records"] = FinancialRecordsModule(client, limiter)
+        self.modules["associates_network"] = AssociatesNetworkModule(client, limiter)
+        self.modules["real_estate_deep"] = RealEstateDeepModule(client, limiter)
+        self.modules["travel_history"] = TravelHistoryModule(client, limiter)
+        self.modules["alias_detection"] = AliasDetectionModule(client, limiter)
+
+        # v0.4 — Life History: Digital & Genealogy
+        self.modules["genealogy_records"] = GenealogyRecordsModule(client, limiter)
+        self.modules["digital_footprint"] = DigitalFootprintModule(client, limiter)
+        self.modules["phone_deep"] = PhoneDeepModule(client, limiter)
+        self.modules["email_deep"] = EmailDeepModule(client, limiter)
+        self.modules["life_event_timeline"] = LifeEventTimelineModule(client, limiter)
 
     def list_modules(self) -> dict[str, str]:
         """Return module names and descriptions."""
