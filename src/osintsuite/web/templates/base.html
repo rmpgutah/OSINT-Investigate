@@ -257,49 +257,258 @@
     .classification-confidential { background: #7f1d1d; color: #fca5a5; }
     .classification-secret { background: #ef4444; color: #fff; }
 
+    /* ── Animations ────────────────────────────────────────────────── */
+    @keyframes fadeSlideUp {
+        from { opacity: 0; transform: translateY(12px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .card, .stat-card, .target-card { animation: fadeSlideUp 0.3s ease-out; }
+
+    @keyframes shimmer {
+        0%   { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+    .skeleton {
+        background: linear-gradient(90deg, var(--card) 25%, var(--hover) 50%, var(--card) 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        border-radius: var(--r);
+        min-height: 1rem;
+    }
+
+    /* ── Button micro-interactions ─────────────────────────────────── */
+    .btn:active { transform: scale(0.97); }
+    .btn-primary:hover { transform: translateY(-1px); }
+
+    /* ── Table upgrade ─────────────────────────────────────────────── */
+    .data-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+    .data-table thead th { position: sticky; top: 0; z-index: 10; cursor: pointer; user-select: none; }
+    .data-table thead th:hover { color: var(--text); }
+    .data-table thead th .sort-arrow { font-size: 0.65rem; margin-left: 0.3rem; opacity: 0.4; }
+    .data-table thead th.sort-asc .sort-arrow,
+    .data-table thead th.sort-desc .sort-arrow { opacity: 1; color: var(--accent); }
+
+    /* ── FAB ────────────────────────────────────────────────────────── */
+    .fab { position: fixed; bottom: 2rem; right: 2rem; width: 56px; height: 56px; border-radius: 50%; background: var(--accent); color: #fff; border: none; font-size: 1.6rem; cursor: pointer; box-shadow: 0 4px 16px rgba(59,130,246,0.4); z-index: 90; display: flex; align-items: center; justify-content: center; transition: transform 0.2s, box-shadow 0.2s; }
+    .fab:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(59,130,246,0.5); }
+    .fab.fab-open { transform: rotate(45deg); }
+    .fab-menu { position: fixed; bottom: 6rem; right: 2rem; display: flex; flex-direction: column; gap: 0.75rem; z-index: 89; opacity: 0; pointer-events: none; transform: translateY(10px); transition: opacity 0.2s, transform 0.2s; }
+    .fab-menu.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    .fab-mini { width: 42px; height: 42px; border-radius: 50%; background: var(--card); border: 1px solid var(--border); color: var(--text); cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); position: relative; transition: background 0.15s; }
+    .fab-mini:hover { background: var(--hover); }
+    .fab-mini .fab-tooltip { position: absolute; right: calc(100% + 0.6rem); white-space: nowrap; background: var(--bg2); border: 1px solid var(--border); padding: 0.25rem 0.6rem; border-radius: var(--r); font-size: 0.78rem; color: var(--dim); pointer-events: none; }
+
+    /* ── Notification bell ──────────────────────────────────────────── */
+    .notif-wrapper { position: relative; }
+    .notif-bell { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 1.15rem; padding: 0.3rem; position: relative; transition: color 0.2s; }
+    .notif-bell:hover { color: var(--text); }
+    .notif-badge { position: absolute; top: 0; right: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--red); display: none; }
+    .notif-badge.has-items { display: block; }
+    .notif-dropdown { position: absolute; top: calc(100% + 8px); right: 0; width: 340px; background: var(--card); border: 1px solid var(--border); border-radius: var(--r); box-shadow: 0 12px 40px rgba(0,0,0,0.5); display: none; z-index: 80; max-height: 400px; overflow-y: auto; }
+    .notif-dropdown.active { display: block; }
+    .notif-dropdown .notif-header { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.85rem; color: var(--dim); display: flex; justify-content: space-between; align-items: center; }
+    .notif-dropdown .notif-item { padding: 0.65rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; transition: background 0.1s; cursor: default; }
+    .notif-dropdown .notif-item:hover { background: var(--hover); }
+    .notif-dropdown .notif-item .notif-action { font-weight: 600; text-transform: capitalize; }
+    .notif-dropdown .notif-item .notif-time { color: var(--muted); font-size: 0.75rem; margin-top: 0.15rem; }
+    .notif-dropdown .notif-empty { padding: 2rem; text-align: center; color: var(--muted); font-size: 0.85rem; }
+
+    /* ── Sidebar ────────────────────────────────────────────────────── */
+    .sidebar { width: 240px; background: var(--bg2); border-right: 1px solid var(--border); position: fixed; top: 0; left: 0; height: 100vh; z-index: 60; display: flex; flex-direction: column; overflow-y: auto; transition: transform 0.25s ease; }
+    .sidebar-brand { display: flex; align-items: center; gap: 0.6rem; padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--border); }
+    .sidebar-brand svg { width: 24px; height: 24px; flex-shrink: 0; }
+    .sidebar-brand a { color: var(--text); font-weight: 700; font-size: 1.05rem; text-decoration: none; }
+    .sidebar-nav { padding: 0.75rem 0; flex: 1; }
+    .sidebar-nav a { display: flex; align-items: center; gap: 0.7rem; padding: 0.55rem 1.25rem; color: var(--dim); font-size: 0.9rem; text-decoration: none; transition: all 0.15s; border-left: 3px solid transparent; }
+    .sidebar-nav a:hover { color: var(--text); background: var(--hover); text-decoration: none; }
+    .sidebar-nav a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(59,130,246,0.08); }
+    .sidebar-nav .nav-section { padding: 0.75rem 1.25rem 0.35rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+    .sidebar-footer { padding: 0.75rem 1.25rem; border-top: 1px solid var(--border); }
+
+    .main-content { margin-left: 240px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 2rem; background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; backdrop-filter: blur(12px); gap: 1rem; }
+    .topbar-left { display: flex; align-items: center; gap: 0.75rem; }
+    .topbar-right { display: flex; align-items: center; gap: 1rem; }
+    .hamburger { display: none; background: none; border: none; color: var(--text); font-size: 1.4rem; cursor: pointer; padding: 0.2rem; }
+    .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 55; }
+
+    /* ── Keyboard help modal ───────────────────────────────────────── */
+    .kb-help-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 300; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+    .kb-help-overlay.active { display: flex; }
+    .kb-help { background: var(--card); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 480px; padding: 1.5rem 2rem; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+    .kb-help h3 { margin-bottom: 1rem; font-size: 1.1rem; }
+    .kb-help .kb-row { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+    .kb-help .kb-row:last-child { border-bottom: none; }
+    .kb-help kbd { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 0.15rem 0.5rem; font-size: 0.78rem; color: var(--dim); font-family: inherit; min-width: 1.5rem; text-align: center; }
+
+    /* ── Toast stack ────────────────────────────────────────────────── */
+    .toast-container { position: fixed; bottom: 2rem; right: 2rem; z-index: 200; display: flex; flex-direction: column-reverse; gap: 0.5rem; pointer-events: none; }
+    .toast-item { pointer-events: auto; display: flex; align-items: center; gap: 0.6rem; background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 0.75rem 1.1rem; box-shadow: 0 8px 30px rgba(0,0,0,0.4); transform: translateX(120%); transition: transform 0.3s ease; min-width: 260px; position: relative; overflow: hidden; }
+    .toast-item.show { transform: translateX(0); }
+    .toast-item.toast-success { border-left: 4px solid var(--green); }
+    .toast-item.toast-error { border-left: 4px solid var(--red); }
+    .toast-item.toast-info { border-left: 4px solid var(--accent); }
+    .toast-item .toast-icon { font-size: 1rem; flex-shrink: 0; }
+    .toast-item .toast-msg { flex: 1; font-size: 0.88rem; }
+    .toast-item .toast-progress { position: absolute; bottom: 0; left: 0; height: 3px; background: var(--accent); transition: width linear; }
+    .toast-item.toast-success .toast-progress { background: var(--green); }
+    .toast-item.toast-error .toast-progress { background: var(--red); }
+
+    /* ── Activity timeline ──────────────────────────────────────────── */
+    .activity-timeline { position: relative; padding-left: 1.5rem; }
+    .activity-timeline::before { content: ''; position: absolute; left: 0.45rem; top: 0; bottom: 0; width: 2px; background: var(--border); }
+    .timeline-item { position: relative; padding: 0.5rem 0 0.5rem 1rem; font-size: 0.88rem; }
+    .timeline-item::before { content: ''; position: absolute; left: -1.1rem; top: 0.75rem; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--border); background: var(--bg); }
+    .timeline-item.tl-created::before { border-color: var(--green); background: var(--green); }
+    .timeline-item.tl-module_run::before { border-color: var(--accent); background: var(--accent); }
+    .timeline-item.tl-updated::before { border-color: var(--yellow); background: var(--yellow); }
+    .timeline-item.tl-deleted::before { border-color: var(--red); background: var(--red); }
+    .timeline-item.tl-status_change::before { border-color: #a78bfa; background: #a78bfa; }
+    .timeline-item .tl-desc { color: var(--text); }
+    .timeline-item .tl-time { color: var(--muted); font-size: 0.78rem; margin-left: 0.5rem; }
+
+    /* ── Kanban ─────────────────────────────────────────────────────── */
+    .kanban-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+    .kanban-col { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); min-height: 200px; }
+    .kanban-col-header { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.85rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.04em; display: flex; justify-content: space-between; align-items: center; }
+    .kanban-col-header .col-count { background: var(--hover); border-radius: 10px; padding: 0.1rem 0.5rem; font-size: 0.75rem; }
+    .kanban-col-body { padding: 0.5rem; min-height: 120px; }
+    .kanban-col-body.drag-over { background: rgba(59,130,246,0.06); }
+    .kanban-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 0.75rem; margin-bottom: 0.5rem; cursor: grab; transition: box-shadow 0.15s, transform 0.15s; }
+    .kanban-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .kanban-card.dragging { opacity: 0.5; transform: rotate(2deg); }
+    .kanban-card .kc-number { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.2rem; }
+    .kanban-card .kc-title { font-size: 0.88rem; font-weight: 600; margin-bottom: 0.4rem; }
+    .kanban-card .kc-meta { display: flex; gap: 0.5rem; align-items: center; }
+    .kanban-card .kc-badge { font-size: 0.68rem; padding: 0.1rem 0.45rem; border-radius: 10px; }
+
+    /* ── View toggle ───────────────────────────────────────────────── */
+    .view-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+    .view-toggle button { background: transparent; border: none; padding: 0.35rem 0.8rem; color: var(--dim); font-size: 0.82rem; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+    .view-toggle button:hover { color: var(--text); background: var(--hover); }
+    .view-toggle button.active { background: var(--accent); color: #fff; }
+
     @media (max-width: 768px) {
-        .search-input { width: 160px; }
-        .search-input:focus { width: 200px; }
+        .sidebar { transform: translateX(-100%); }
+        .sidebar.open { transform: translateX(0); }
+        .sidebar-overlay.active { display: block; }
+        .main-content { margin-left: 0; }
+        .hamburger { display: block; }
+        .search-input { width: 140px; }
+        .search-input:focus { width: 180px; }
         .search-results { width: 300px; }
         .container { padding: 1rem; }
         .profile-grid { grid-template-columns: 1fr; }
         .target-grid { grid-template-columns: 1fr; }
         .stats-grid { grid-template-columns: repeat(2, 1fr); }
         .info-grid { grid-template-columns: 1fr; }
-        .navbar { padding: 0.8rem 1rem; }
+        .kanban-board { grid-template-columns: 1fr; }
+        .topbar { padding: 0.6rem 1rem; }
+        .notif-dropdown { right: -2rem; width: 300px; }
     }
     </style>
     {% block head %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-brand">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
             <a href="{{ request.scope.get('root_path', '') }}/">OSINT Suite</a>
         </div>
-        <div class="nav-links">
-            <a href="{{ request.scope.get('root_path', '') }}/">Dashboard</a>
-            <a href="{{ request.scope.get('root_path', '') }}/api/investigations" target="_blank">API</a>
-            <button class="theme-toggle" id="themeToggle" title="Toggle light/dark theme" onclick="toggleTheme()">
-                <span id="themeIcon">&#9788;</span>
+        <nav class="sidebar-nav">
+            <div class="nav-section">Navigation</div>
+            <a href="{{ request.scope.get('root_path', '') }}/" id="nav-dashboard">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                Dashboard
+            </a>
+            <a href="{{ request.scope.get('root_path', '') }}/api/investigations" target="_blank" id="nav-api">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+                API
+            </a>
+            <div class="nav-section" id="sidebarInvHeader" style="display:none;">Investigations</div>
+            <div id="sidebarInvList"></div>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="theme-toggle" id="themeToggle" title="Toggle light/dark theme" onclick="toggleTheme()" style="width:100%;justify-content:center;">
+                <span id="themeIcon">&#9788;</span> <span style="font-size:0.82rem;">Toggle Theme</span>
             </button>
-            <div class="search-wrapper">
-                <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                <input type="text" class="search-input" id="globalSearch" placeholder="Search cases, targets..." autocomplete="off">
-                <div class="search-results" id="searchResults"></div>
-            </div>
         </div>
-    </nav>
+    </aside>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-    <main class="container">
-        {% block content %}{% endblock %}
-    </main>
+    <!-- Main content area -->
+    <div class="main-content">
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Toggle sidebar">&#9776;</button>
+                <div class="search-wrapper">
+                    <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <input type="text" class="search-input" id="globalSearch" placeholder="Search cases, targets..." autocomplete="off">
+                    <div class="search-results" id="searchResults"></div>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <button class="btn btn-sm" onclick="openCmdPalette()" title="Command palette (Ctrl+K)" style="font-size:0.78rem;color:var(--muted);border-color:var(--border);">
+                    <kbd style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:0.05rem 0.35rem;font-size:0.7rem;color:var(--muted);font-family:inherit;">Ctrl+K</kbd>
+                </button>
+                <div class="notif-wrapper">
+                    <button class="notif-bell" id="notifBell" onclick="toggleNotifDropdown()" title="Notifications">
+                        &#128276;
+                        <span class="notif-badge" id="notifBadge"></span>
+                    </button>
+                    <div class="notif-dropdown" id="notifDropdown">
+                        <div class="notif-header">
+                            <span>Activity</span>
+                            <button class="btn btn-sm" style="padding:0.15rem 0.4rem;font-size:0.72rem;" onclick="loadNotifications()">Refresh</button>
+                        </div>
+                        <div id="notifList"></div>
+                    </div>
+                </div>
+            </div>
+        </header>
 
-    <footer class="footer">
-        <p>OSINT Investigation Suite v0.1.0</p>
-    </footer>
+        <main class="container">
+            {% block content %}{% endblock %}
+        </main>
 
-    <div id="toast" class="toast"></div>
+        <footer class="footer">
+            <p>OSINT Investigation Suite v0.1.0</p>
+        </footer>
+    </div>
+
+    <!-- Toast container (stacked) -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- FAB -->
+    <button class="fab" id="fabBtn" onclick="toggleFab()" title="Quick actions">+</button>
+    <div class="fab-menu" id="fabMenu">
+        <button class="fab-mini" onclick="document.getElementById('newCaseModal')&&(document.getElementById('newCaseModal').style.display='flex');toggleFab();" title="New case">
+            <span>&#128221;</span>
+            <span class="fab-tooltip">New Case</span>
+        </button>
+        <button class="fab-mini" onclick="openCmdPalette();toggleFab();" title="Command palette">
+            <span>&#9000;</span>
+            <span class="fab-tooltip">Command Palette</span>
+        </button>
+        <button class="fab-mini" onclick="document.getElementById('globalSearch').focus();toggleFab();" title="Search">
+            <span>&#128269;</span>
+            <span class="fab-tooltip">Search</span>
+        </button>
+    </div>
+
+    <!-- Keyboard shortcuts help modal -->
+    <div class="kb-help-overlay" id="kbHelpOverlay" onclick="if(event.target===this)this.classList.remove('active')">
+        <div class="kb-help">
+            <h3>Keyboard Shortcuts</h3>
+            <div class="kb-row"><span>Open command palette</span><kbd>Ctrl+K</kbd></div>
+            <div class="kb-row"><span>Focus search</span><kbd>/</kbd></div>
+            <div class="kb-row"><span>New case (dashboard)</span><kbd>N</kbd></div>
+            <div class="kb-row"><span>Toggle flag (hover finding)</span><kbd>F</kbd></div>
+            <div class="kb-row"><span>Close modal / palette</span><kbd>Esc</kbd></div>
+            <div class="kb-row"><span>Show this help</span><kbd>?</kbd></div>
+        </div>
+    </div>
 
     <!-- 78. Command Palette -->
     <div class="cmd-palette-overlay" id="cmdPalette" onclick="if(event.target===this)closeCmdPalette()">
@@ -318,13 +527,6 @@
     // BASE path for reverse proxy support (e.g. "/osint" when behind nginx at /osint/)
     const BASE = '{{ request.scope.get("root_path", "") }}';
 
-    function showToast(msg, type = 'success') {
-        const t = document.getElementById('toast');
-        t.textContent = msg;
-        t.className = 'toast toast-' + type + ' show';
-        setTimeout(() => t.classList.remove('show'), 3500);
-    }
-
     function el(tag, attrs, children) {
         const e = document.createElement(tag);
         if (attrs) Object.entries(attrs).forEach(([k,v]) => { if (k === 'text') e.textContent = v; else e.setAttribute(k, v); });
@@ -332,40 +534,149 @@
         return e;
     }
 
+    // ── Toast (stacking with icons + progress bar) ───────────────────
+    function showToast(msg, type) {
+        type = type || 'success';
+        var container = document.getElementById('toastContainer');
+        var icons = {success: '\u2705', error: '\u274C', info: '\u2139\uFE0F'};
+        var item = el('div', {class: 'toast-item toast-' + type});
+        item.appendChild(el('span', {class: 'toast-icon', text: icons[type] || icons.info}));
+        item.appendChild(el('span', {class: 'toast-msg', text: msg}));
+        var prog = el('div', {class: 'toast-progress', style: 'width:100%;'});
+        item.appendChild(prog);
+        container.appendChild(item);
+        // Trigger animation
+        requestAnimationFrame(function() {
+            item.classList.add('show');
+            prog.style.transition = 'width 3.2s linear';
+            prog.style.width = '0%';
+        });
+        setTimeout(function() {
+            item.classList.remove('show');
+            setTimeout(function() { if (item.parentNode) item.parentNode.removeChild(item); }, 350);
+        }, 3500);
+    }
+
     // ── 71. Theme Toggle ──────────────────────────────────────────────
     function toggleTheme() {
-        const isLight = document.documentElement.classList.toggle('light-theme');
+        var isLight = document.documentElement.classList.toggle('light-theme');
         localStorage.setItem('osint-theme', isLight ? 'light' : 'dark');
         document.getElementById('themeIcon').innerHTML = isLight ? '&#9790;' : '&#9788;';
     }
     (function() {
-        const saved = localStorage.getItem('osint-theme');
+        var saved = localStorage.getItem('osint-theme');
         if (saved === 'light') {
             document.documentElement.classList.add('light-theme');
             document.getElementById('themeIcon').innerHTML = '&#9790;';
         }
     })();
 
+    // ── Sidebar toggle (mobile) ──────────────────────────────────────
+    function toggleSidebar() {
+        var sb = document.getElementById('sidebar');
+        var ov = document.getElementById('sidebarOverlay');
+        sb.classList.toggle('open');
+        ov.classList.toggle('active');
+    }
+
+    // ── Load sidebar investigations list ─────────────────────────────
+    (function() {
+        fetch(BASE + '/api/investigations/').then(function(r){ return r.json(); }).then(function(data) {
+            var list = Array.isArray(data) ? data : [];
+            if (!list.length) return;
+            var header = document.getElementById('sidebarInvHeader');
+            var container = document.getElementById('sidebarInvList');
+            if (header) header.style.display = '';
+            list.slice(0, 10).forEach(function(inv) {
+                var a = el('a', {href: BASE + '/investigation/' + inv.case_number});
+                a.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> ';
+                a.appendChild(document.createTextNode(inv.case_number));
+                container.appendChild(a);
+            });
+        }).catch(function(){});
+    })();
+
+    // ── Notification bell ────────────────────────────────────────────
+    function toggleNotifDropdown() {
+        var dd = document.getElementById('notifDropdown');
+        var isActive = dd.classList.toggle('active');
+        if (isActive) loadNotifications();
+    }
+
+    function loadNotifications() {
+        fetch(BASE + '/api/modules/activity?limit=15').then(function(r){ return r.json(); }).then(function(items) {
+            var list = document.getElementById('notifList');
+            list.replaceChildren();
+            var badge = document.getElementById('notifBadge');
+            if (!items.length) {
+                list.appendChild(el('div', {class: 'notif-empty', text: 'No recent activity'}));
+                badge.classList.remove('has-items');
+                return;
+            }
+            badge.classList.add('has-items');
+            items.forEach(function(item) {
+                var div = el('div', {class: 'notif-item'});
+                var action = el('span', {class: 'notif-action', text: item.action.replace('_', ' ')});
+                div.appendChild(action);
+                div.appendChild(document.createTextNode(' ' + item.entity_type + ' '));
+                var time = el('div', {class: 'notif-time', text: item.relative_time});
+                div.appendChild(time);
+                list.appendChild(div);
+            });
+        }).catch(function(){});
+    }
+
+    // Close notification dropdown on outside click
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.notif-wrapper')) {
+            var dd = document.getElementById('notifDropdown');
+            if (dd) dd.classList.remove('active');
+        }
+    });
+
+    // Poll notifications every 30s
+    setInterval(function() {
+        fetch(BASE + '/api/modules/activity?limit=5').then(function(r){ return r.json(); }).then(function(items) {
+            var badge = document.getElementById('notifBadge');
+            if (items && items.length) badge.classList.add('has-items');
+            else badge.classList.remove('has-items');
+        }).catch(function(){});
+    }, 30000);
+
+    // ── FAB toggle ───────────────────────────────────────────────────
+    function toggleFab() {
+        var btn = document.getElementById('fabBtn');
+        var menu = document.getElementById('fabMenu');
+        btn.classList.toggle('fab-open');
+        menu.classList.toggle('active');
+    }
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.fab') && !e.target.closest('.fab-menu') && !e.target.closest('.fab-mini')) {
+            var btn = document.getElementById('fabBtn');
+            var menu = document.getElementById('fabMenu');
+            if (btn) btn.classList.remove('fab-open');
+            if (menu) menu.classList.remove('active');
+        }
+    });
+
     // ── Global search ─────────────────────────────────────────────────
     (function() {
-        const input = document.getElementById('globalSearch');
-        const results = document.getElementById('searchResults');
-        let debounce = null;
+        var input = document.getElementById('globalSearch');
+        var results = document.getElementById('searchResults');
+        var debounce = null;
 
-        input.addEventListener('input', () => {
+        input.addEventListener('input', function() {
             clearTimeout(debounce);
-            const q = input.value.trim();
+            var q = input.value.trim();
             if (q.length < 2) { results.classList.remove('active'); return; }
-            debounce = setTimeout(async () => {
-                try {
-                    const resp = await fetch(BASE + '/api/modules/search?q=' + encodeURIComponent(q));
-                    const data = await resp.json();
+            debounce = setTimeout(function() {
+                fetch(BASE + '/api/modules/search?q=' + encodeURIComponent(q)).then(function(r){ return r.json(); }).then(function(data) {
                     results.replaceChildren();
 
                     if (data.investigations.length) {
                         results.appendChild(el('div', {class: 'sr-section', text: 'Cases'}));
-                        data.investigations.forEach(i => {
-                            const link = el('a', {href: BASE + '/investigation/' + i.case_number});
+                        data.investigations.forEach(function(i) {
+                            var link = el('a', {href: BASE + '/investigation/' + i.case_number});
                             link.appendChild(document.createTextNode(i.case_number + ' \u2014 ' + i.title + ' '));
                             link.appendChild(el('small', {text: i.status}));
                             results.appendChild(link);
@@ -373,8 +684,8 @@
                     }
                     if (data.targets.length) {
                         results.appendChild(el('div', {class: 'sr-section', text: 'Targets'}));
-                        data.targets.forEach(t => {
-                            const link = el('a', {href: BASE + '/target/' + t.id + '/profile'});
+                        data.targets.forEach(function(t) {
+                            var link = el('a', {href: BASE + '/target/' + t.id + '/profile'});
                             link.appendChild(document.createTextNode(t.label + ' '));
                             link.appendChild(el('small', {text: t.target_type}));
                             results.appendChild(link);
@@ -384,27 +695,27 @@
                         results.appendChild(el('div', {class: 'sr-empty', text: 'No results for "' + q + '"'}));
                     }
                     results.classList.add('active');
-                } catch(e) { results.classList.remove('active'); }
+                }).catch(function() { results.classList.remove('active'); });
             }, 300);
         });
 
-        document.addEventListener('click', (e) => {
+        document.addEventListener('click', function(e) {
             if (!e.target.closest('.search-wrapper')) results.classList.remove('active');
         });
 
-        input.addEventListener('keydown', (e) => {
+        input.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') { results.classList.remove('active'); input.blur(); }
         });
     })();
 
     // ── 78. Command Palette ───────────────────────────────────────────
-    let _cpIndex = -1;
-    let _cpItems = [];
+    var _cpIndex = -1;
+    var _cpItems = [];
 
     function openCmdPalette() {
-        const overlay = document.getElementById('cmdPalette');
+        var overlay = document.getElementById('cmdPalette');
         overlay.classList.add('active');
-        const input = document.getElementById('cmdInput');
+        var input = document.getElementById('cmdInput');
         input.value = '';
         input.focus();
         _cpIndex = -1;
@@ -418,36 +729,34 @@
     }
 
     (function() {
-        const input = document.getElementById('cmdInput');
-        const results = document.getElementById('cmdResults');
-        let debounce = null;
+        var input = document.getElementById('cmdInput');
+        var results = document.getElementById('cmdResults');
+        var debounce = null;
 
-        input.addEventListener('input', () => {
+        input.addEventListener('input', function() {
             clearTimeout(debounce);
-            const q = input.value.trim();
+            var q = input.value.trim();
             if (q.length < 1) { results.replaceChildren(); _cpItems = []; _cpIndex = -1; return; }
-            debounce = setTimeout(async () => {
-                try {
-                    const resp = await fetch(BASE + '/api/modules/search?q=' + encodeURIComponent(q));
-                    const data = await resp.json();
+            debounce = setTimeout(function() {
+                fetch(BASE + '/api/modules/search?q=' + encodeURIComponent(q)).then(function(r){ return r.json(); }).then(function(data) {
                     results.replaceChildren();
                     _cpItems = [];
                     _cpIndex = -1;
 
-                    data.investigations.forEach(i => {
-                        const item = el('a', {class: 'cp-item', href: BASE + '/investigation/' + i.case_number});
+                    data.investigations.forEach(function(i) {
+                        var item = el('a', {class: 'cp-item', href: BASE + '/investigation/' + i.case_number});
                         item.appendChild(el('span', {class: 'cp-icon', text: '\u{1F4C1}'}));
-                        const label = el('span', {class: 'cp-label'});
+                        var label = el('span', {class: 'cp-label'});
                         label.textContent = i.case_number + ' \u2014 ' + i.title;
                         item.appendChild(label);
                         item.appendChild(el('span', {class: 'cp-hint', text: i.status}));
                         results.appendChild(item);
                         _cpItems.push(item);
                     });
-                    data.targets.forEach(t => {
-                        const item = el('a', {class: 'cp-item', href: BASE + '/target/' + t.id + '/profile'});
+                    data.targets.forEach(function(t) {
+                        var item = el('a', {class: 'cp-item', href: BASE + '/target/' + t.id + '/profile'});
                         item.appendChild(el('span', {class: 'cp-icon', text: '\u{1F464}'}));
-                        const label = el('span', {class: 'cp-label'});
+                        var label = el('span', {class: 'cp-label'});
                         label.textContent = t.label;
                         item.appendChild(label);
                         item.appendChild(el('span', {class: 'cp-hint', text: t.target_type}));
@@ -459,11 +768,11 @@
                         results.appendChild(el('div', {class: 'cp-item', style: 'color: var(--muted); cursor: default;'}));
                         results.lastChild.textContent = 'No results for "' + q + '"';
                     }
-                } catch(e) { /* silent */ }
+                }).catch(function() { /* silent */ });
             }, 200);
         });
 
-        input.addEventListener('keydown', (e) => {
+        input.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') { closeCmdPalette(); return; }
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
@@ -486,25 +795,60 @@
             if (e.key === 'Enter') {
                 e.preventDefault();
                 if (_cpIndex >= 0 && _cpItems[_cpIndex]) {
-                    const href = _cpItems[_cpIndex].getAttribute('href');
+                    var href = _cpItems[_cpIndex].getAttribute('href');
                     if (href) window.location.href = href;
                 } else if (_cpItems.length === 1) {
-                    const href = _cpItems[0].getAttribute('href');
+                    var href = _cpItems[0].getAttribute('href');
                     if (href) window.location.href = href;
                 }
             }
         });
     })();
 
+    // ── makeTableSortable ────────────────────────────────────────────
+    function makeTableSortable(tableId) {
+        var table = document.getElementById(tableId);
+        if (!table) return;
+        var headers = table.querySelectorAll('thead th');
+        headers.forEach(function(th, colIdx) {
+            // Skip action columns (last column typically)
+            if (!th.textContent.trim()) return;
+            var arrow = el('span', {class: 'sort-arrow', text: '\u25B2'});
+            th.appendChild(arrow);
+            th.addEventListener('click', function() {
+                var tbody = table.querySelector('tbody');
+                var rows = Array.from(tbody.querySelectorAll('tr'));
+                var asc = !th.classList.contains('sort-asc');
+
+                // Clear sort classes from all headers
+                headers.forEach(function(h) { h.classList.remove('sort-asc', 'sort-desc'); });
+                th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+                arrow.textContent = asc ? '\u25B2' : '\u25BC';
+
+                rows.sort(function(a, b) {
+                    var aText = (a.cells[colIdx] && a.cells[colIdx].textContent.trim()) || '';
+                    var bText = (b.cells[colIdx] && b.cells[colIdx].textContent.trim()) || '';
+                    var aNum = parseFloat(aText);
+                    var bNum = parseFloat(bText);
+                    if (!isNaN(aNum) && !isNaN(bNum)) {
+                        return asc ? aNum - bNum : bNum - aNum;
+                    }
+                    return asc ? aText.localeCompare(bText) : bText.localeCompare(aText);
+                });
+                rows.forEach(function(r) { tbody.appendChild(r); });
+            });
+        });
+    }
+
     // ── 72. Keyboard Shortcuts ────────────────────────────────────────
-    document.addEventListener('keydown', (e) => {
-        const tag = (e.target.tagName || '').toLowerCase();
-        const isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable;
+    document.addEventListener('keydown', function(e) {
+        var tag = (e.target.tagName || '').toLowerCase();
+        var isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable;
 
         // Cmd/Ctrl+K = Command palette (always works)
         if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
             e.preventDefault();
-            const overlay = document.getElementById('cmdPalette');
+            var overlay = document.getElementById('cmdPalette');
             if (overlay.classList.contains('active')) closeCmdPalette();
             else openCmdPalette();
             return;
@@ -512,11 +856,11 @@
 
         // Escape = close modals
         if (e.key === 'Escape') {
-            // Close command palette
-            const cp = document.getElementById('cmdPalette');
+            var cp = document.getElementById('cmdPalette');
             if (cp && cp.classList.contains('active')) { closeCmdPalette(); return; }
-            // Close any visible modal
-            document.querySelectorAll('.modal').forEach(m => {
+            var kb = document.getElementById('kbHelpOverlay');
+            if (kb && kb.classList.contains('active')) { kb.classList.remove('active'); return; }
+            document.querySelectorAll('.modal').forEach(function(m) {
                 if (m.style.display === 'flex') m.style.display = 'none';
             });
             return;
@@ -524,6 +868,14 @@
 
         // Only process single-key shortcuts when not in an input
         if (isInput) return;
+
+        // ? = show keyboard help
+        if (e.key === '?') {
+            e.preventDefault();
+            var kb = document.getElementById('kbHelpOverlay');
+            if (kb) kb.classList.toggle('active');
+            return;
+        }
 
         // / = focus search
         if (e.key === '/') {
@@ -534,16 +886,26 @@
 
         // n = new case modal (on dashboard)
         if (e.key === 'n') {
-            const modal = document.getElementById('newCaseModal');
+            var modal = document.getElementById('newCaseModal');
             if (modal) { modal.style.display = 'flex'; return; }
         }
 
         // f = toggle flag on focused finding (on target profile)
         if (e.key === 'f') {
-            const focused = document.querySelector('.finding-row:hover .flag-btn');
+            var focused = document.querySelector('.finding-row:hover .flag-btn');
             if (focused) { focused.click(); return; }
         }
     });
+
+    // ── Highlight active sidebar nav ─────────────────────────────────
+    (function() {
+        var path = window.location.pathname;
+        var base = BASE || '';
+        if (path === base + '/' || path === base) {
+            var d = document.getElementById('nav-dashboard');
+            if (d) d.classList.add('active');
+        }
+    })();
     </script>
     {% block scripts %}{% endblock %}
 </body>

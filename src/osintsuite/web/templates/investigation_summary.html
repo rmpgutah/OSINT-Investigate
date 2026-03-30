@@ -7,7 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-.summary-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+.summary-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 2rem; }
 .summary-stat { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 1.25rem 1.5rem; text-align: center; }
 .summary-stat .stat-number { font-size: 2rem; font-weight: 800; line-height: 1.1; }
 .summary-stat .stat-label { color: var(--dim); font-size: 0.85rem; margin-top: 0.25rem; }
@@ -17,9 +17,18 @@
 .chart-card canvas { max-height: 300px; }
 #summaryMap { height: 350px; border-radius: var(--r); }
 .priority-badge-lg { display: inline-block; padding: 0.3rem 0.9rem; border-radius: 20px; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.03em; margin-left: 0.75rem; }
+.risk-gauge { width: 80px; height: 80px; border-radius: 50%; background: conic-gradient(var(--gauge-color) calc(var(--risk) * 1%), var(--bg) 0); display: flex; align-items: center; justify-content: center; position: relative; }
+.risk-gauge-inner { width: 60px; height: 60px; border-radius: 50%; background: var(--card); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; }
 @media (max-width: 768px) {
     .summary-stats { grid-template-columns: repeat(2, 1fr); }
     .chart-grid { grid-template-columns: 1fr; }
+}
+@media print {
+    .navbar, .sidebar, .footer, .fab, .btn, .toast, .cmd-palette-overlay { display: none !important; }
+    .main-content { margin-left: 0 !important; }
+    body { background: #fff !important; color: #000 !important; -webkit-print-color-adjust: exact; }
+    .card { border: 1px solid #ddd !important; break-inside: avoid; }
+    .stat-card { border: 1px solid #ddd !important; }
 }
 </style>
 {% endblock %}
@@ -43,12 +52,20 @@
             <p class="subtitle">{{ investigation.case_number }} &mdash; {{ investigation.title }}</p>
         </div>
         <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem;">
+            <button class="btn" onclick="window.print()">Export PDF</button>
             <span class="badge badge-{{ investigation.status }}" style="font-size: 0.85rem; padding: 0.3rem 0.9rem;">{{ investigation.status }}</span>
             {% if investigation.assigned_to %}
             <span style="color: var(--dim); font-size: 0.82rem;">Assigned to: {{ investigation.assigned_to }}</span>
             {% endif %}
         </div>
     </div>
+
+    {# Executive summary text #}
+    {% if executive_text %}
+    <div class="card" style="border-left: 4px solid var(--accent); margin-bottom: 1.5rem;">
+        <p style="color: var(--dim); font-size: 0.95rem; line-height: 1.7;">{{ executive_text }}</p>
+    </div>
+    {% endif %}
 
     {# Stats grid #}
     <div class="summary-stats">
@@ -67,6 +84,12 @@
         <div class="summary-stat">
             <div class="stat-number" style="color: var(--dim);" id="statReviewed">{{ reviewed_count }}</div>
             <div class="stat-label">Reviewed</div>
+        </div>
+        <div class="summary-stat" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="risk-gauge" style="--risk: {{ risk_score }}; --gauge-color: {% if risk_score > 70 %}#ef4444{% elif risk_score > 30 %}#f59e0b{% else %}#22c55e{% endif %};">
+                <div class="risk-gauge-inner" style="color: {% if risk_score > 70 %}#ef4444{% elif risk_score > 30 %}#f59e0b{% else %}#22c55e{% endif %};">{{ risk_score }}</div>
+            </div>
+            <div class="stat-label" style="margin-top: 0.5rem;">Risk Score</div>
         </div>
     </div>
 
@@ -139,6 +162,23 @@
     </div>
     {% endif %}
 
+    {# Evidence Chain #}
+    {% if flagged_findings_chain %}
+    <div class="section" style="margin-top: 2rem;">
+        <h2 style="margin-bottom: 1rem;">Evidence Chain</h2>
+        {% for f in flagged_findings_chain %}
+        <div class="card" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; margin-bottom: 0.5rem;">
+            <span class="badge badge-type">{{ f.target_label }}</span>
+            <span style="color: var(--muted);">&rarr;</span>
+            <span class="badge" style="background: var(--bg2);">{{ f.module_name }}</span>
+            <span style="color: var(--muted);">&rarr;</span>
+            <span style="flex: 1;">{{ f.title or f.finding_type }}</span>
+            <span class="confidence confidence-{{ 'high' if f.confidence > 70 else 'medium' if f.confidence > 40 else 'low' }}">{{ f.confidence }}%</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     {# Map #}
     <div class="card" style="margin-bottom: 2rem;">
         <h3>Geolocated Findings</h3>
@@ -192,10 +232,14 @@ function renderModuleChart(byModule) {
         },
         options: {
             responsive: true,
-            plugins: { legend: { display: false } },
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { backgroundColor: '#1e2230', titleColor: '#e2e8f0', bodyColor: '#9ca3b0', borderColor: '#2d3343', borderWidth: 1 }
+            },
             scales: {
-                y: { beginAtZero: true, ticks: { precision: 0 } },
-                x: { grid: { display: false } }
+                y: { beginAtZero: true, ticks: { precision: 0, color: '#9ca3b0' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                x: { grid: { display: false }, ticks: { color: '#9ca3b0' } }
             }
         }
     });
@@ -215,8 +259,10 @@ function renderConfidenceChart(byConf) {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true } }
+                legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, color: '#9ca3b0' } },
+                tooltip: { backgroundColor: '#1e2230', titleColor: '#e2e8f0', bodyColor: '#9ca3b0', borderColor: '#2d3343', borderWidth: 1 }
             }
         }
     });
@@ -243,10 +289,14 @@ function renderTimelineChart(overTime) {
         },
         options: {
             responsive: true,
-            plugins: { legend: { display: false } },
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { backgroundColor: '#1e2230', titleColor: '#e2e8f0', bodyColor: '#9ca3b0', borderColor: '#2d3343', borderWidth: 1 }
+            },
             scales: {
-                y: { beginAtZero: true, ticks: { precision: 0 } },
-                x: { grid: { display: false } }
+                y: { beginAtZero: true, ticks: { precision: 0, color: '#9ca3b0' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                x: { grid: { display: false }, ticks: { color: '#9ca3b0' } }
             }
         }
     });

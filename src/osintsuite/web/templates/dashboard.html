@@ -7,34 +7,90 @@
     <h1 style="margin-bottom: 1.5rem;">Investigation Dashboard</h1>
 
     <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-number">{{ stats.total_cases }}</div>
-            <div class="stat-label">Total Cases</div>
+        <div class="stat-card" style="border-left: 4px solid var(--accent);">
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+                <div>
+                    <div class="stat-number" data-count="{{ stats.total_cases }}">0</div>
+                    <div class="stat-label">Total Cases</div>
+                </div>
+            </div>
         </div>
-        <div class="stat-card stat-open">
-            <div class="stat-number">{{ stats.open_cases }}</div>
-            <div class="stat-label">Open</div>
+        <div class="stat-card stat-open" style="border-left: 4px solid var(--green);">
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                <div>
+                    <div class="stat-number" data-count="{{ stats.open_cases }}">0</div>
+                    <div class="stat-label">Open</div>
+                </div>
+            </div>
         </div>
-        <div class="stat-card stat-active">
-            <div class="stat-number">{{ stats.active_cases }}</div>
-            <div class="stat-label">Active</div>
+        <div class="stat-card stat-active" style="border-left: 4px solid var(--yellow);">
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--yellow)" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                <div>
+                    <div class="stat-number" data-count="{{ stats.active_cases }}">0</div>
+                    <div class="stat-label">Active</div>
+                </div>
+            </div>
         </div>
-        <div class="stat-card stat-closed">
-            <div class="stat-number">{{ stats.closed_cases }}</div>
-            <div class="stat-label">Closed</div>
+        <div class="stat-card stat-closed" style="border-left: 4px solid var(--muted);">
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <div>
+                    <div class="stat-number" data-count="{{ stats.closed_cases }}">0</div>
+                    <div class="stat-label">Closed</div>
+                </div>
+            </div>
         </div>
+    </div>
+
+    <!-- Activity Timeline -->
+    <div class="section" id="activitySection" style="display:none;">
+        <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:0.75rem;">Recent Activity</h2>
+        <div class="activity-timeline" id="activityTimeline"></div>
     </div>
 
     <div class="section">
         <div class="section-header">
-            <h2>Investigations</h2>
+            <div style="display:flex;align-items:center;gap:1rem;">
+                <h2>Investigations</h2>
+                <div class="view-toggle">
+                    <button class="active" id="viewTableBtn" onclick="switchView('table')">Table</button>
+                    <button id="viewKanbanBtn" onclick="switchView('kanban')">Kanban</button>
+                </div>
+            </div>
             <button class="btn btn-primary" onclick="document.getElementById('newCaseModal').style.display='flex'">
                 + New Case
             </button>
         </div>
 
+        <!-- Kanban View (hidden by default) -->
+        <div id="kanbanView" style="display:none;">
+            <div class="kanban-board">
+                <div class="kanban-col" data-status="open">
+                    <div class="kanban-col-header">Open <span class="col-count" id="kanban-count-open">0</span></div>
+                    <div class="kanban-col-body" id="kanban-open"></div>
+                </div>
+                <div class="kanban-col" data-status="active">
+                    <div class="kanban-col-header">Active <span class="col-count" id="kanban-count-active">0</span></div>
+                    <div class="kanban-col-body" id="kanban-active"></div>
+                </div>
+                <div class="kanban-col" data-status="closed">
+                    <div class="kanban-col-header">Closed <span class="col-count" id="kanban-count-closed">0</span></div>
+                    <div class="kanban-col-body" id="kanban-closed"></div>
+                </div>
+                <div class="kanban-col" data-status="archived">
+                    <div class="kanban-col-header">Archived <span class="col-count" id="kanban-count-archived">0</span></div>
+                    <div class="kanban-col-body" id="kanban-archived"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table View (default) -->
         {% if investigations %}
-        <table class="data-table">
+        <div id="tableView">
+        <table class="data-table" id="invTable">
             <thead>
                 <tr>
                     <th>Case #</th>
@@ -66,11 +122,14 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
         {% else %}
+        <div id="tableView">
         <div class="empty-state">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem; opacity: 0.4;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             <p>No investigations yet.</p>
             <p style="font-size: 0.88rem; margin-top: 0.5rem;">Click <strong>+ New Case</strong> to start your first investigation.</p>
+        </div>
         </div>
         {% endif %}
     </div>
@@ -100,28 +159,89 @@
 
 {% block scripts %}
 <script>
+// ── countUp animation ────────────────────────────────────────────────
+function countUp(element, target) {
+    var start = 0;
+    var duration = 600;
+    var startTime = null;
+    target = parseInt(target, 10) || 0;
+    if (target === 0) { element.textContent = '0'; return; }
+    function step(ts) {
+        if (!startTime) startTime = ts;
+        var progress = Math.min((ts - startTime) / duration, 1);
+        var eased = 1 - Math.pow(1 - progress, 3);
+        element.textContent = Math.floor(eased * target);
+        if (progress < 1) requestAnimationFrame(step);
+        else element.textContent = target;
+    }
+    requestAnimationFrame(step);
+}
+
+// Animate all stat numbers on load
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.stat-number[data-count]').forEach(function(el) {
+        countUp(el, el.getAttribute('data-count'));
+    });
+    // Make the investigations table sortable
+    makeTableSortable('invTable');
+});
+
+// ── Activity Timeline ────────────────────────────────────────────────
+(function() {
+    var actionIcons = {
+        created: '\u2795',
+        module_run: '\u26A1',
+        updated: '\u270F\uFE0F',
+        deleted: '\u{1F5D1}',
+        status_change: '\u{1F504}'
+    };
+
+    fetch(BASE + '/api/modules/activity?limit=10').then(function(r){ return r.json(); }).then(function(items) {
+        if (!items || !items.length) return;
+        var section = document.getElementById('activitySection');
+        var timeline = document.getElementById('activityTimeline');
+        section.style.display = '';
+
+        items.forEach(function(item) {
+            var div = el('div', {class: 'timeline-item tl-' + item.action});
+            var icon = actionIcons[item.action] || '\u2022';
+            var desc = el('span', {class: 'tl-desc'});
+            desc.textContent = icon + ' ' + item.action.replace('_', ' ') + ' ' + item.entity_type;
+            if (item.details && item.details.title) {
+                desc.textContent += ': ' + item.details.title;
+            } else if (item.details && item.details.case_number) {
+                desc.textContent += ' ' + item.details.case_number;
+            }
+            div.appendChild(desc);
+            div.appendChild(el('span', {class: 'tl-time', text: item.relative_time}));
+            timeline.appendChild(div);
+        });
+    }).catch(function(){});
+})();
+
+// ── Create / Delete cases ────────────────────────────────────────────
 async function createCase(e) {
     e.preventDefault();
-    const btn = document.getElementById('createBtn');
+    var btn = document.getElementById('createBtn');
     btn.disabled = true;
     btn.textContent = 'Creating...';
 
-    const title = document.getElementById('title').value;
-    const description = document.getElementById('description').value;
+    var title = document.getElementById('title').value;
+    var description = document.getElementById('description').value;
 
     try {
-        const response = await fetch(BASE + '/api/investigations/', {
+        var response = await fetch(BASE + '/api/investigations/', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({title, description: description || null})
+            body: JSON.stringify({title: title, description: description || null})
         });
 
         if (response.ok) {
-            const data = await response.json();
+            var data = await response.json();
             showToast('Case ' + data.case_number + ' created');
-            setTimeout(() => window.location.reload(), 800);
+            setTimeout(function() { window.location.reload(); }, 800);
         } else {
-            const err = await response.json();
+            var err = await response.json();
             showToast('Failed: ' + (err.detail || 'Unknown error'), 'error');
             btn.disabled = false;
             btn.textContent = 'Create Case';
@@ -137,15 +257,110 @@ async function deleteInvestigation(id, caseNumber) {
     if (!confirm('Delete ' + caseNumber + '? This will remove all targets, findings, and reports.')) return;
 
     try {
-        const resp = await fetch(BASE + '/api/investigations/' + id, { method: 'DELETE' });
+        var resp = await fetch(BASE + '/api/investigations/' + id, { method: 'DELETE' });
         if (resp.ok) {
-            const row = document.getElementById('row-' + id);
+            var row = document.getElementById('row-' + id);
             if (row) row.remove();
             showToast(caseNumber + ' deleted');
         } else {
             showToast('Failed to delete', 'error');
         }
     } catch(e) { showToast('Network error', 'error'); }
+}
+
+// ── View toggle (Table / Kanban) ─────────────────────────────────────
+var _kanbanLoaded = false;
+
+function switchView(view) {
+    var tableView = document.getElementById('tableView');
+    var kanbanView = document.getElementById('kanbanView');
+    var tableBtn = document.getElementById('viewTableBtn');
+    var kanbanBtn = document.getElementById('viewKanbanBtn');
+
+    if (view === 'kanban') {
+        if (tableView) tableView.style.display = 'none';
+        if (kanbanView) kanbanView.style.display = '';
+        tableBtn.classList.remove('active');
+        kanbanBtn.classList.add('active');
+        if (!_kanbanLoaded) { loadKanban(); _kanbanLoaded = true; }
+    } else {
+        if (tableView) tableView.style.display = '';
+        if (kanbanView) kanbanView.style.display = 'none';
+        kanbanBtn.classList.remove('active');
+        tableBtn.classList.add('active');
+    }
+}
+
+// ── Kanban ────────────────────────────────────────────────────────────
+function loadKanban() {
+    fetch(BASE + '/api/investigations/').then(function(r){ return r.json(); }).then(function(data) {
+        var list = Array.isArray(data) ? data : [];
+        var cols = {open: [], active: [], closed: [], archived: []};
+        list.forEach(function(inv) {
+            var st = inv.status || 'open';
+            if (!cols[st]) cols[st] = [];
+            cols[st].push(inv);
+        });
+
+        ['open', 'active', 'closed', 'archived'].forEach(function(status) {
+            var body = document.getElementById('kanban-' + status);
+            var countEl = document.getElementById('kanban-count-' + status);
+            if (!body) return;
+            body.replaceChildren();
+            countEl.textContent = cols[status].length;
+
+            cols[status].forEach(function(inv) {
+                var card = el('div', {class: 'kanban-card', draggable: 'true', 'data-id': inv.id, 'data-case': inv.case_number});
+                card.appendChild(el('div', {class: 'kc-number', text: inv.case_number}));
+                var titleLink = el('a', {href: BASE + '/investigation/' + inv.case_number, class: 'kc-title', style: 'color:var(--text);text-decoration:none;display:block;'});
+                titleLink.textContent = inv.title;
+                card.appendChild(titleLink);
+                var meta = el('div', {class: 'kc-meta'});
+                if (inv.priority) {
+                    meta.appendChild(el('span', {class: 'kc-badge badge-' + inv.priority, text: inv.priority}));
+                }
+                card.appendChild(meta);
+
+                // Drag events
+                card.addEventListener('dragstart', function(e) {
+                    e.dataTransfer.setData('text/plain', inv.id);
+                    e.dataTransfer.setData('application/x-case', inv.case_number);
+                    card.classList.add('dragging');
+                });
+                card.addEventListener('dragend', function() {
+                    card.classList.remove('dragging');
+                });
+
+                body.appendChild(card);
+            });
+
+            // Drop zone events
+            body.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                body.classList.add('drag-over');
+            });
+            body.addEventListener('dragleave', function() {
+                body.classList.remove('drag-over');
+            });
+            body.addEventListener('drop', function(e) {
+                e.preventDefault();
+                body.classList.remove('drag-over');
+                var invId = e.dataTransfer.getData('text/plain');
+                var caseNum = e.dataTransfer.getData('application/x-case');
+                if (!invId) return;
+
+                fetch(BASE + '/api/investigations/' + invId + '/status?status=' + status, {method: 'PATCH'}).then(function(r) {
+                    if (r.ok) {
+                        showToast(caseNum + ' moved to ' + status);
+                        _kanbanLoaded = false;
+                        loadKanban();
+                    } else {
+                        showToast('Failed to update status', 'error');
+                    }
+                }).catch(function() { showToast('Network error', 'error'); });
+            });
+        });
+    }).catch(function() { showToast('Failed to load kanban', 'error'); });
 }
 </script>
 {% endblock %}

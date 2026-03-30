@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from osintsuite.db.repository import Repository
 from osintsuite.engine.investigation import InvestigationEngine
@@ -100,6 +101,40 @@ async def delete_investigation(
         raise HTTPException(status_code=404, detail="Investigation not found")
     await repo.delete_investigation(investigation_id)
     return {"status": "deleted"}
+
+
+class MergeRequest(BaseModel):
+    source_id: uuid.UUID
+    destination_id: uuid.UUID
+
+
+@router.post("/merge")
+async def merge_investigations(data: MergeRequest, repo: Repository = Depends(get_repo)):
+    """Merge source investigation into destination. Moves all targets, deletes source."""
+    from sqlalchemy import update
+    from osintsuite.db.models import Target
+
+    source = await repo.get_investigation(data.source_id)
+    dest = await repo.get_investigation(data.destination_id)
+    if not source or not dest:
+        raise HTTPException(status_code=404, detail="Investigation not found")
+
+    # Move all targets from source to destination
+    stmt = update(Target).where(Target.investigation_id == data.source_id).values(investigation_id=data.destination_id)
+    await repo.session.execute(stmt)
+
+    # Log the merge
+    await repo.log_audit("investigation", data.destination_id, "updated", {
+        "action": "merge",
+        "merged_from": source.case_number,
+        "merged_from_id": str(data.source_id),
+    })
+
+    # Delete the source investigation
+    await repo.delete_investigation(data.source_id)
+    await repo.session.commit()
+
+    return {"status": "merged", "source": source.case_number, "destination": dest.case_number}
 
 
 @router.post("/{investigation_id}/run-all")

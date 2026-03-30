@@ -165,6 +165,7 @@ class Finding(Base):
         SmallInteger, CheckConstraint("confidence BETWEEN 0 AND 100")
     )
     raw_response: Mapped[Optional[str]] = mapped_column(Text)
+    tags: Mapped[list] = mapped_column(JSON, default=list, nullable=False, server_default="[]")
     is_flagged: Mapped[bool] = mapped_column(default=False, nullable=False)
     is_reviewed: Mapped[bool] = mapped_column(default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

@@ -17,6 +17,53 @@ tr.flagged { border-left: 3px solid var(--yellow); }
 tr.reviewed { opacity: 0.6; }
 .finding-row { cursor: pointer; }
 .finding-row:hover td { color: var(--text); }
+
+/* Slideout panel */
+.slideout-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99; display: none; }
+.slideout-overlay.open { display: block; }
+.slideout { position: fixed; top: 0; right: 0; width: 500px; height: 100vh; background: var(--card); border-left: 1px solid var(--border); transform: translateX(100%); transition: transform 0.25s ease; z-index: 100; overflow-y: auto; padding: 2rem; }
+.slideout.open { transform: translateX(0); }
+.slideout-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+.slideout-header h3 { font-size: 1.1rem; margin: 0; }
+.slideout-close { background: none; border: none; color: var(--dim); font-size: 1.5rem; cursor: pointer; line-height: 1; }
+.slideout-close:hover { color: var(--text); }
+.slideout-nav { display: flex; gap: 0.5rem; }
+.slideout-nav button { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r); padding: 0.3rem 0.6rem; color: var(--dim); cursor: pointer; font-size: 0.85rem; }
+.slideout-nav button:hover { color: var(--text); border-color: var(--accent); }
+.slideout-section { margin-bottom: 1.25rem; }
+.slideout-section strong { display: block; color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.2rem; }
+.slideout-section span { font-size: 0.92rem; }
+.slideout-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+/* Confidence heatmap bar */
+.conf-heatmap { display: flex; height: 12px; border-radius: 6px; overflow: hidden; margin-bottom: 0.5rem; }
+.conf-heatmap-high { background: var(--green); }
+.conf-heatmap-med { background: var(--yellow); }
+.conf-heatmap-low { background: var(--red); }
+.conf-counts { display: flex; gap: 1rem; font-size: 0.78rem; color: var(--dim); }
+.conf-counts span { display: flex; align-items: center; gap: 0.3rem; }
+.conf-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+/* Filter pills */
+.filter-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
+.filter-pill { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.6rem; border-radius: 20px; border: 1px solid var(--border); cursor: pointer; font-size: 0.75rem; color: var(--dim); background: transparent; transition: all 0.15s; font-family: inherit; }
+.filter-pill:hover { border-color: var(--accent); color: var(--accent); }
+.filter-pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.filter-pill .pill-count { background: rgba(255,255,255,0.15); border-radius: 10px; padding: 0 0.35rem; font-size: 0.7rem; min-width: 1.2rem; text-align: center; }
+.filter-pill.active .pill-count { background: rgba(255,255,255,0.25); }
+
+/* Module run history */
+.run-history-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+.run-history-row:last-child { border-bottom: none; }
+.run-status { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 10px; font-size: 0.72rem; font-weight: 600; }
+.run-status-completed { background: #064e3b; color: #6ee7b7; }
+.run-status-failed { background: #7f1d1d; color: #fca5a5; }
+.run-status-running { background: #78350f; color: #fcd34d; }
+.run-status-pending { background: #374151; color: #9ca3af; }
+
+/* Confidence gauge in slideout */
+.conf-gauge { width: 100%; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; margin-top: 0.3rem; }
+.conf-gauge-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
 </style>
 {% endblock %}
 
@@ -74,16 +121,65 @@ tr.reviewed { opacity: 0.6; }
         <div class="card">
             <h3>Summary</h3>
             {% set total_findings = findings_by_module.values()|map('length')|sum %}
+            {% set all_findings_list = [] %}
+            {% for mod_findings in findings_by_module.values() %}
+                {% for f in mod_findings %}
+                    {% if all_findings_list.append(f) %}{% endif %}
+                {% endfor %}
+            {% endfor %}
+            {% set high_count = [] %}
+            {% set med_count = [] %}
+            {% set low_count = [] %}
+            {% for f in all_findings_list %}
+                {% if (f.confidence or 0) > 70 %}{% if high_count.append(1) %}{% endif %}
+                {% elif (f.confidence or 0) > 40 %}{% if med_count.append(1) %}{% endif %}
+                {% else %}{% if low_count.append(1) %}{% endif %}
+                {% endif %}
+            {% endfor %}
+            {% set h = high_count|length %}
+            {% set m = med_count|length %}
+            {% set l = low_count|length %}
             <div style="text-align: center; padding: 0.5rem 0;">
                 <div style="font-size: 2.5rem; font-weight: 800; color: var(--accent);">{{ total_findings }}</div>
                 <div style="color: var(--dim); font-size: 0.85rem;">Total Findings</div>
             </div>
+            {% if total_findings > 0 %}
+            <div style="padding: 0.75rem 0;">
+                <div class="conf-heatmap">
+                    {% if h > 0 %}<div class="conf-heatmap-high" style="width: {{ (h / total_findings * 100)|round(1) }}%;"></div>{% endif %}
+                    {% if m > 0 %}<div class="conf-heatmap-med" style="width: {{ (m / total_findings * 100)|round(1) }}%;"></div>{% endif %}
+                    {% if l > 0 %}<div class="conf-heatmap-low" style="width: {{ (l / total_findings * 100)|round(1) }}%;"></div>{% endif %}
+                </div>
+                <div class="conf-counts">
+                    <span><span class="conf-dot" style="background: var(--green);"></span> {{ h }} high</span>
+                    <span><span class="conf-dot" style="background: var(--yellow);"></span> {{ m }} medium</span>
+                    <span><span class="conf-dot" style="background: var(--red);"></span> {{ l }} low</span>
+                </div>
+            </div>
+            {% endif %}
             <div style="text-align: center; padding: 0.5rem 0;">
                 <div style="font-size: 1.5rem; font-weight: 700; color: var(--dim);">{{ findings_by_module|length }}</div>
                 <div style="color: var(--muted); font-size: 0.8rem;">Modules</div>
             </div>
         </div>
     </div>
+
+    <!-- Module Run History -->
+    {% if module_runs %}
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <h3>Module Run History</h3>
+        {% for run in module_runs[:15] %}
+        <div class="run-history-row">
+            <span style="flex: 1; font-weight: 500;">{{ run.module_name.replace('_', ' ').title() }}</span>
+            <span class="run-status run-status-{{ run.status }}">{{ run.status }}</span>
+            <span style="color: var(--dim); min-width: 3rem; text-align: right;">{{ run.findings_count }} found</span>
+            <span style="color: var(--muted); font-size: 0.78rem; min-width: 6rem; text-align: right;">
+                {% if run.started_at %}{{ run.started_at.strftime('%m/%d %H:%M') }}{% else %}&mdash;{% endif %}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <div class="section">
         <h2 style="margin-bottom: 1rem;">Findings</h2>
@@ -97,6 +193,16 @@ tr.reviewed { opacity: 0.6; }
             <button onclick="bulkAction('review')">Review Selected</button>
             <button onclick="bulkAction('delete')">Delete Selected</button>
             <button onclick="clearBulkSelection()" style="background:rgba(255,255,255,0.1);">Clear</button>
+        </div>
+
+        <!-- Filter pills (module filter) -->
+        <div class="filter-pills" id="filterPills">
+            {% for module_name in findings_by_module %}
+            <button class="filter-pill" data-module="{{ module_name }}" onclick="toggleModulePill(this)">
+                {{ module_name.replace('_', ' ').title() }}
+                <span class="pill-count">{{ findings_by_module[module_name]|length }}</span>
+            </button>
+            {% endfor %}
         </div>
 
         <!-- Filter bar -->
@@ -122,109 +228,73 @@ tr.reviewed { opacity: 0.6; }
             <span id="filterCount" style="color: var(--muted); font-size: 0.78rem;"></span>
         </div>
 
-        <div class="findings-tabs">
-            <div class="tab-nav">
-                <button class="tab-btn active" onclick="showTab('all', this)">All ({{ total_findings }})</button>
-                {% for module_name in findings_by_module %}
-                <button class="tab-btn" onclick="showTab('{{ module_name }}', this)">
-                    {{ module_name.replace('_', ' ').title() }}
-                    <span style="opacity: 0.6; margin-left: 0.3rem;">({{ findings_by_module[module_name]|length }})</span>
-                </button>
-                {% endfor %}
+        <!-- All findings table -->
+        <div id="tab-all">
+            <table class="data-table" id="findingsTable" style="border-top: none; border-radius: 0 0 var(--r) var(--r);">
+                <thead>
+                    <tr>
+                        <th style="width: 2rem;"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all"></th>
+                        <th style="width: 3rem;"></th>
+                        <th>Module</th>
+                        <th>Source</th>
+                        <th>Title</th>
+                        <th>Confidence</th>
+                        <th>Date</th>
+                        <th style="width: 3rem;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for module_name, findings in findings_by_module.items() %}
+                    {% for finding in findings %}
+                    <tr class="finding-row {% if finding.is_flagged %}flagged{% endif %} {% if finding.is_reviewed %}reviewed{% endif %}"
+                        data-id="{{ finding.id }}"
+                        data-module="{{ finding.module_name }}"
+                        data-confidence="{{ finding.confidence or 0 }}"
+                        data-flagged="{{ finding.is_flagged|lower }}"
+                        data-reviewed="{{ finding.is_reviewed|lower }}"
+                        data-title="{{ finding.title or '' }}"
+                        data-content="{{ finding.content or '' }}"
+                        data-source="{{ finding.source }}"
+                        data-type="{{ finding.finding_type }}"
+                        data-date="{{ finding.created_at.strftime('%m/%d %H:%M') }}">
+                        <td onclick="event.stopPropagation()"><input type="checkbox" class="finding-cb" data-finding-id="{{ finding.id }}" onchange="updateBulkBar()"></td>
+                        <td>
+                            <button class="flag-btn {% if finding.is_flagged %}active{% endif %}" onclick="event.stopPropagation(); toggleFlag('{{ finding.id }}', this)" title="Flag as important">&#9733;</button>
+                            <button class="review-btn {% if finding.is_reviewed %}active{% endif %}" onclick="event.stopPropagation(); toggleReview('{{ finding.id }}', this)" title="Mark reviewed">&#10003;</button>
+                        </td>
+                        <td><span class="badge badge-type" style="font-size: 0.7rem;">{{ finding.module_name.replace('_', ' ') }}</span></td>
+                        <td><span class="badge">{{ finding.source }}</span></td>
+                        <td onclick="openSlideout('{{ finding.id }}')">
+                            {% if finding.content and finding.content.startswith('http') %}
+                            <a href="{{ finding.content }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ finding.title or finding.content[:60] }}</a>
+                            {% else %}
+                            {{ finding.title or '\u2014' }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if finding.confidence is not none %}
+                            <span class="confidence confidence-{{ 'high' if finding.confidence > 70 else 'medium' if finding.confidence > 40 else 'low' }}">{{ finding.confidence }}%</span>
+                            {% else %}
+                            <span style="color: var(--muted);">\u2014</span>
+                            {% endif %}
+                        </td>
+                        <td style="color: var(--dim); font-size: 0.82rem;">{{ finding.created_at.strftime('%m/%d %H:%M') }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;" onclick="event.stopPropagation(); deleteFinding('{{ finding.id }}', this)" title="Delete">&#10005;</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+            <!-- 76. Pagination -->
+            <div id="paginationBar" style="display:flex; align-items:center; justify-content:center; gap:0.5rem; padding:1rem; background:var(--card); border:1px solid var(--border); border-top:none; border-radius:0 0 var(--r) var(--r);">
+                <button class="btn btn-sm" id="prevPage" onclick="changePage(-1)">&larr; Prev</button>
+                <span id="pageInfo" style="color:var(--dim); font-size:0.85rem;"></span>
+                <button class="btn btn-sm" id="nextPage" onclick="changePage(1)">Next &rarr;</button>
             </div>
-
-            <!-- All findings table -->
-            <div class="tab-content active" id="tab-all">
-                <table class="data-table" id="findingsTable" style="border-top: none; border-radius: 0 0 var(--r) var(--r);">
-                    <thead>
-                        <tr>
-                            <th style="width: 2rem;"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all"></th>
-                            <th style="width: 3rem;"></th>
-                            <th>Module</th>
-                            <th>Source</th>
-                            <th>Title</th>
-                            <th>Confidence</th>
-                            <th>Date</th>
-                            <th style="width: 3rem;"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for module_name, findings in findings_by_module.items() %}
-                        {% for finding in findings %}
-                        <tr class="finding-row {% if finding.is_flagged %}flagged{% endif %} {% if finding.is_reviewed %}reviewed{% endif %}"
-                            data-id="{{ finding.id }}"
-                            data-module="{{ finding.module_name }}"
-                            data-confidence="{{ finding.confidence or 0 }}"
-                            data-flagged="{{ finding.is_flagged|lower }}"
-                            data-reviewed="{{ finding.is_reviewed|lower }}"
-                            data-title="{{ finding.title or '' }}"
-                            data-content="{{ finding.content or '' }}"
-                            data-source="{{ finding.source }}"
-                            data-type="{{ finding.finding_type }}"
-                            data-date="{{ finding.created_at.strftime('%m/%d %H:%M') }}">
-                            <td onclick="event.stopPropagation()"><input type="checkbox" class="finding-cb" data-finding-id="{{ finding.id }}" onchange="updateBulkBar()"></td>
-                            <td>
-                                <button class="flag-btn {% if finding.is_flagged %}active{% endif %}" onclick="event.stopPropagation(); toggleFlag('{{ finding.id }}', this)" title="Flag as important">&#9733;</button>
-                                <button class="review-btn {% if finding.is_reviewed %}active{% endif %}" onclick="event.stopPropagation(); toggleReview('{{ finding.id }}', this)" title="Mark reviewed">&#10003;</button>
-                            </td>
-                            <td><span class="badge badge-type" style="font-size: 0.7rem;">{{ finding.module_name.replace('_', ' ') }}</span></td>
-                            <td><span class="badge">{{ finding.source }}</span></td>
-                            <td onclick="showFindingDetail('{{ finding.id }}')">
-                                {% if finding.content and finding.content.startswith('http') %}
-                                <a href="{{ finding.content }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ finding.title or finding.content[:60] }}</a>
-                                {% else %}
-                                {{ finding.title or '\u2014' }}
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if finding.confidence is not none %}
-                                <span class="confidence confidence-{{ 'high' if finding.confidence > 70 else 'medium' if finding.confidence > 40 else 'low' }}">{{ finding.confidence }}%</span>
-                                {% else %}
-                                <span style="color: var(--muted);">\u2014</span>
-                                {% endif %}
-                            </td>
-                            <td style="color: var(--dim); font-size: 0.82rem;">{{ finding.created_at.strftime('%m/%d %H:%M') }}</td>
-                            <td>
-                                <button class="btn btn-sm btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;" onclick="event.stopPropagation(); deleteFinding('{{ finding.id }}', this)" title="Delete">&#10005;</button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        {% endfor %}
-                    </tbody>
-                </table>
-                <!-- 76. Pagination -->
-                <div id="paginationBar" style="display:flex; align-items:center; justify-content:center; gap:0.5rem; padding:1rem; background:var(--card); border:1px solid var(--border); border-top:none; border-radius:0 0 var(--r) var(--r);">
-                    <button class="btn btn-sm" id="prevPage" onclick="changePage(-1)">&larr; Prev</button>
-                    <span id="pageInfo" style="color:var(--dim); font-size:0.85rem;"></span>
-                    <button class="btn btn-sm" id="nextPage" onclick="changePage(1)">Next &rarr;</button>
-                </div>
-            </div>
-
-            {% for module_name, findings in findings_by_module.items() %}
-            <div class="tab-content" id="tab-{{ module_name }}">
-                <table class="data-table" style="border-top: none; border-radius: 0 0 var(--r) var(--r);">
-                    <thead>
-                        <tr><th>Source</th><th>Type</th><th>Title</th><th>Confidence</th><th>Date</th></tr>
-                    </thead>
-                    <tbody>
-                        {% for finding in findings %}
-                        <tr class="finding-row" onclick="showFindingDetail('{{ finding.id }}')">
-                            <td><span class="badge">{{ finding.source }}</span></td>
-                            <td style="color: var(--dim);">{{ finding.finding_type }}</td>
-                            <td>{{ finding.title or '\u2014' }}</td>
-                            <td>
-                                {% if finding.confidence is not none %}
-                                <span class="confidence confidence-{{ 'high' if finding.confidence > 70 else 'medium' if finding.confidence > 40 else 'low' }}">{{ finding.confidence }}%</span>
-                                {% else %}<span style="color: var(--muted);">\u2014</span>{% endif %}
-                            </td>
-                            <td style="color: var(--dim); font-size: 0.85rem;">{{ finding.created_at.strftime('%m/%d %H:%M') }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% endfor %}
         </div>
+
         {% else %}
         <div class="empty-state">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem; opacity: 0.4;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -235,12 +305,20 @@ tr.reviewed { opacity: 0.6; }
     </div>
 </div>
 
-<!-- Finding Detail Modal -->
-<div id="findingModal" class="modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
-    <div class="modal-content" style="max-width: 700px; max-height: 80vh; overflow-y: auto;">
-        <h3 id="modalTitle">Finding Detail</h3>
-        <div id="modalBody"></div>
+<!-- Slideout overlay + panel -->
+<div class="slideout-overlay" id="slideoutOverlay" onclick="closeSlideout()"></div>
+<div class="slideout" id="slideoutPanel">
+    <div class="slideout-header">
+        <h3 id="slideoutTitle">Finding Detail</h3>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <div class="slideout-nav">
+                <button onclick="navigateSlideout(-1)" title="Previous">&larr;</button>
+                <button onclick="navigateSlideout(1)" title="Next">&rarr;</button>
+            </div>
+            <button class="slideout-close" onclick="closeSlideout()">&times;</button>
+        </div>
     </div>
+    <div id="slideoutBody"></div>
 </div>
 {% endblock %}
 
@@ -250,11 +328,49 @@ const TARGET_ID = "{{ target.id }}";
 const PAGE_SIZE = 50;
 let currentPage = 1;
 
-function showTab(name, btn) {
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('tab-' + name).classList.add('active');
-    btn.classList.add('active');
+// ── Module pill filtering ───────────────────────────────────────
+let activeModules = new Set();
+
+function toggleModulePill(pill) {
+    const mod = pill.dataset.module;
+    if (activeModules.has(mod)) {
+        activeModules.delete(mod);
+        pill.classList.remove('active');
+    } else {
+        activeModules.add(mod);
+        pill.classList.add('active');
+    }
+    applyFilters();
+}
+
+// ── Filters ──────────────────────────────────────────────────────
+function applyFilters() {
+    const search = document.getElementById('filterSearch').value.toLowerCase();
+    const minConf = parseInt(document.getElementById('filterConfidence').value);
+    const show = document.getElementById('filterShow').value;
+    const rows = document.querySelectorAll('#findingsTable tbody tr');
+
+    rows.forEach(row => {
+        const title = (row.dataset.title || '').toLowerCase();
+        const content = (row.dataset.content || '').toLowerCase();
+        const conf = parseInt(row.dataset.confidence) || 0;
+        const flagged = row.dataset.flagged === 'true';
+        const reviewed = row.dataset.reviewed === 'true';
+        const module = row.dataset.module;
+
+        let pass = true;
+        if (search && !title.includes(search) && !content.includes(search)) pass = false;
+        if (conf < minConf) pass = false;
+        if (show === 'flagged' && !flagged) pass = false;
+        if (show === 'unreviewed' && reviewed) pass = false;
+        // Module pill filter: if any pills are active, only show matching modules
+        if (activeModules.size > 0 && !activeModules.has(module)) pass = false;
+
+        row.dataset._filterPass = pass ? 'true' : 'false';
+    });
+
+    currentPage = 1;
+    applyPagination();
 }
 
 async function runModules(btn) {
@@ -311,33 +427,6 @@ function applyPagination() {
 
 function changePage(delta) {
     currentPage += delta;
-    applyPagination();
-}
-
-// ── Filters ──────────────────────────────────────────────────────
-function applyFilters() {
-    const search = document.getElementById('filterSearch').value.toLowerCase();
-    const minConf = parseInt(document.getElementById('filterConfidence').value);
-    const show = document.getElementById('filterShow').value;
-    const rows = document.querySelectorAll('#findingsTable tbody tr');
-
-    rows.forEach(row => {
-        const title = (row.dataset.title || '').toLowerCase();
-        const content = (row.dataset.content || '').toLowerCase();
-        const conf = parseInt(row.dataset.confidence) || 0;
-        const flagged = row.dataset.flagged === 'true';
-        const reviewed = row.dataset.reviewed === 'true';
-
-        let pass = true;
-        if (search && !title.includes(search) && !content.includes(search)) pass = false;
-        if (conf < minConf) pass = false;
-        if (show === 'flagged' && !flagged) pass = false;
-        if (show === 'unreviewed' && reviewed) pass = false;
-
-        row.dataset._filterPass = pass ? 'true' : 'false';
-    });
-
-    currentPage = 1;
     applyPagination();
 }
 
@@ -453,14 +542,35 @@ async function deleteFinding(findingId, btn) {
     } catch(e) { showToast('Network error', 'error'); }
 }
 
-// ── Finding detail modal ─────────────────────────────────────────
-async function showFindingDetail(findingId) {
-    const modal = document.getElementById('findingModal');
-    const title = document.getElementById('modalTitle');
-    const body = document.getElementById('modalBody');
+// ── Slideout finding detail ─────────────────────────────────────
+let allFindingIds = [];
+let currentSlideoutIdx = -1;
+
+// Collect all finding IDs from the table rows
+(function() {
+    document.querySelectorAll('#findingsTable tbody tr.finding-row').forEach(row => {
+        allFindingIds.push(row.dataset.id);
+    });
+})();
+
+async function openSlideout(findingId) {
+    const overlay = document.getElementById('slideoutOverlay');
+    const panel = document.getElementById('slideoutPanel');
+    const title = document.getElementById('slideoutTitle');
+    const body = document.getElementById('slideoutBody');
+
+    currentSlideoutIdx = allFindingIds.indexOf(findingId);
     title.textContent = 'Loading...';
     body.replaceChildren();
-    modal.style.display = 'flex';
+    overlay.classList.add('open');
+    panel.classList.add('open');
+
+    await loadSlideoutContent(findingId);
+}
+
+async function loadSlideoutContent(findingId) {
+    const title = document.getElementById('slideoutTitle');
+    const body = document.getElementById('slideoutBody');
 
     try {
         const resp = await fetch(BASE + '/api/findings/' + findingId);
@@ -468,42 +578,82 @@ async function showFindingDetail(findingId) {
         const f = await resp.json();
 
         title.textContent = f.title || f.finding_type;
+        body.replaceChildren();
 
+        // Source badge
+        const badges = el('div', {style: 'margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;'});
+        badges.appendChild(el('span', {class: 'badge badge-type', text: (f.module_name || '').replace(/_/g, ' ')}));
+        badges.appendChild(el('span', {class: 'badge', text: f.source || ''}));
+        if (f.finding_type) badges.appendChild(el('span', {class: 'badge', text: f.finding_type}));
+        body.appendChild(badges);
+
+        // Confidence gauge
+        if (f.confidence !== null && f.confidence !== undefined) {
+            const confSection = el('div', {class: 'slideout-section'});
+            confSection.appendChild(el('strong', {text: 'Confidence'}));
+            const confColor = f.confidence > 70 ? 'var(--green)' : f.confidence > 40 ? 'var(--yellow)' : 'var(--red)';
+            confSection.appendChild(el('span', {text: f.confidence + '%', style: 'font-weight: 700; color: ' + confColor + ';'}));
+            const gauge = el('div', {class: 'conf-gauge'});
+            const fill = el('div', {class: 'conf-gauge-fill', style: 'width: ' + f.confidence + '%; background: ' + confColor + ';'});
+            gauge.appendChild(fill);
+            confSection.appendChild(gauge);
+            body.appendChild(confSection);
+        }
+
+        // Grid of fields
+        const grid = el('div', {class: 'slideout-grid'});
         const section = (label, value) => {
-            const div = el('div', {style: 'margin-bottom: 1rem;'});
-            div.appendChild(el('strong', {text: label, style: 'display: block; color: var(--muted); font-size: 0.78rem; text-transform: uppercase; margin-bottom: 0.2rem;'}));
-            div.appendChild(el('span', {text: value || '\u2014', style: 'font-size: 0.92rem;'}));
+            const div = el('div', {class: 'slideout-section'});
+            div.appendChild(el('strong', {text: label}));
+            div.appendChild(el('span', {text: value || '\u2014'}));
             return div;
         };
-
-        const grid = el('div', {style: 'display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;'});
-        grid.appendChild(section('Module', f.module_name));
-        grid.appendChild(section('Source', f.source));
-        grid.appendChild(section('Type', f.finding_type));
-        grid.appendChild(section('Confidence', f.confidence !== null ? f.confidence + '%' : '\u2014'));
         grid.appendChild(section('Flagged', f.is_flagged ? 'Yes' : 'No'));
         grid.appendChild(section('Reviewed', f.is_reviewed ? 'Yes' : 'No'));
+        grid.appendChild(section('Created', f.created_at ? new Date(f.created_at).toLocaleString() : '\u2014'));
         body.appendChild(grid);
 
         if (f.content) {
-            body.appendChild(section('Content', f.content));
+            const cs = el('div', {class: 'slideout-section'});
+            cs.appendChild(el('strong', {text: 'Content'}));
+            cs.appendChild(el('span', {text: f.content}));
+            body.appendChild(cs);
         }
 
         if (f.data && Object.keys(f.data).length > 0) {
-            const dataSection = el('div', {style: 'margin-bottom: 1rem;'});
-            dataSection.appendChild(el('strong', {text: 'Data', style: 'display: block; color: var(--muted); font-size: 0.78rem; text-transform: uppercase; margin-bottom: 0.4rem;'}));
+            const ds = el('div', {class: 'slideout-section'});
+            ds.appendChild(el('strong', {text: 'Data'}));
             const pre = el('pre', {text: JSON.stringify(f.data, null, 2), style: 'background: var(--bg); padding: 0.75rem; border-radius: var(--r); font-size: 0.8rem; overflow-x: auto; max-height: 300px; overflow-y: auto; color: var(--dim);'});
-            dataSection.appendChild(pre);
-            body.appendChild(dataSection);
+            ds.appendChild(pre);
+            body.appendChild(ds);
         }
-
-        body.appendChild(section('Created', new Date(f.created_at).toLocaleString()));
 
     } catch(e) {
         title.textContent = 'Error';
         body.appendChild(el('p', {text: 'Failed to load finding details.', style: 'color: var(--red);'}));
     }
 }
+
+function navigateSlideout(delta) {
+    if (allFindingIds.length === 0) return;
+    currentSlideoutIdx += delta;
+    if (currentSlideoutIdx < 0) currentSlideoutIdx = allFindingIds.length - 1;
+    if (currentSlideoutIdx >= allFindingIds.length) currentSlideoutIdx = 0;
+    loadSlideoutContent(allFindingIds[currentSlideoutIdx]);
+}
+
+function closeSlideout() {
+    document.getElementById('slideoutOverlay').classList.remove('open');
+    document.getElementById('slideoutPanel').classList.remove('open');
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeSlideout();
+    if (document.getElementById('slideoutPanel').classList.contains('open')) {
+        if (e.key === 'ArrowLeft') navigateSlideout(-1);
+        if (e.key === 'ArrowRight') navigateSlideout(1);
+    }
+});
 
 // Init
 applyFilters();

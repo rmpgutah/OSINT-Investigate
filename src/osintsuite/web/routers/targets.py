@@ -6,6 +6,8 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from pydantic import BaseModel
+
 from osintsuite.config import Settings, get_settings
 from osintsuite.db.repository import Repository
 from osintsuite.engine.investigation import InvestigationEngine
@@ -13,6 +15,40 @@ from osintsuite.web.dependencies import get_engine, get_repo
 from osintsuite.web.schemas import ModuleRunRequest, TargetCreate, TargetResponse, TargetUpdate
 
 router = APIRouter()
+
+
+class BatchImportRequest(BaseModel):
+    investigation_id: uuid.UUID
+    csv_data: str
+
+
+@router.post("/import")
+async def batch_import_targets(data: BatchImportRequest, repo: Repository = Depends(get_repo)):
+    """Import multiple targets from CSV text."""
+    import csv
+    import io
+
+    reader = csv.DictReader(io.StringIO(data.csv_data))
+    created = []
+    errors = []
+
+    for i, row in enumerate(reader, 1):
+        try:
+            target = await repo.add_target(
+                investigation_id=data.investigation_id,
+                target_type=row.get("type", "person"),
+                label=row.get("label", f"Import-{i}"),
+                full_name=row.get("name") or row.get("full_name"),
+                email=row.get("email"),
+                phone=row.get("phone"),
+                city=row.get("city"),
+                state=row.get("state"),
+            )
+            created.append({"id": str(target.id), "label": target.label})
+        except Exception as e:
+            errors.append({"row": i, "error": str(e)})
+
+    return {"created": len(created), "errors": errors, "targets": created}
 
 
 @router.post("/", response_model=TargetResponse)
@@ -105,6 +141,29 @@ async def delete_target(
         raise HTTPException(status_code=404, detail="Target not found")
     await repo.delete_target(target_id)
     return {"status": "deleted"}
+
+
+@router.get("/{target_id}/run-status")
+async def get_run_status(target_id: uuid.UUID, repo: Repository = Depends(get_repo)):
+    """Get module run statuses for progress tracking."""
+    from sqlalchemy import select
+    from osintsuite.db.models import ModuleRun
+
+    q = select(ModuleRun).where(ModuleRun.target_id == target_id).order_by(ModuleRun.started_at.desc())
+    result = await repo.session.execute(q)
+    runs = result.scalars().all()
+    return [
+        {
+            "id": str(r.id),
+            "module_name": r.module_name,
+            "status": r.status,
+            "started_at": r.started_at.isoformat() if r.started_at else None,
+            "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+            "findings_count": r.findings_count,
+            "error_message": r.error_message,
+        }
+        for r in runs
+    ]
 
 
 @router.get("/{target_id}/export")

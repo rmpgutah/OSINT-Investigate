@@ -331,3 +331,41 @@ async def get_map_data(
                 })
 
     return geo_findings
+
+
+# ── Activity feed ────────────────────────────────────────────────────
+
+@router.get("/activity")
+async def get_activity(limit: int = 20, repo: Repository = Depends(get_repo)):
+    """Recent activity feed from audit log."""
+    from sqlalchemy import select
+    from osintsuite.db.models import AuditLog
+    from datetime import datetime, timezone
+
+    q = select(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit)
+    result = await repo.session.execute(q)
+    entries = result.scalars().all()
+
+    now = datetime.now(timezone.utc)
+    items = []
+    for e in entries:
+        delta = now - e.created_at.replace(tzinfo=timezone.utc)
+        secs = int(delta.total_seconds())
+        if secs < 60:
+            rel = f"{secs}s ago"
+        elif secs < 3600:
+            rel = f"{secs // 60}m ago"
+        elif secs < 86400:
+            rel = f"{secs // 3600}h ago"
+        else:
+            rel = f"{secs // 86400}d ago"
+
+        items.append({
+            "action": e.action,
+            "entity_type": e.entity_type,
+            "entity_id": str(e.entity_id),
+            "details": e.details or {},
+            "created_at": e.created_at.isoformat(),
+            "relative_time": rel,
+        })
+    return items
