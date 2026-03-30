@@ -40,18 +40,25 @@
                     <th>Case #</th>
                     <th>Title</th>
                     <th>Status</th>
+                    <th>Targets</th>
+                    <th>Findings</th>
                     <th>Created</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
-                {% for inv in investigations %}
-                <tr>
-                    <td><a href="/investigation/{{ inv.case_number }}"><strong>{{ inv.case_number }}</strong></a></td>
-                    <td>{{ inv.title }}</td>
-                    <td><span class="badge badge-{{ inv.status }}">{{ inv.status }}</span></td>
-                    <td style="color: var(--dim);">{{ inv.created_at.strftime('%Y-%m-%d') }}</td>
-                    <td><a href="/investigation/{{ inv.case_number }}" class="btn btn-sm">View</a></td>
+                {% for item in investigations %}
+                <tr id="row-{{ item.inv.id }}">
+                    <td><a href="/investigation/{{ item.inv.case_number }}"><strong>{{ item.inv.case_number }}</strong></a></td>
+                    <td>{{ item.inv.title }}</td>
+                    <td><span class="badge badge-{{ item.inv.status }}">{{ item.inv.status }}</span></td>
+                    <td style="color: var(--dim);">{{ item.target_count }}</td>
+                    <td style="color: var(--dim);">{{ item.finding_count }}</td>
+                    <td style="color: var(--dim);">{{ item.inv.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td style="display: flex; gap: 0.4rem;">
+                        <a href="/investigation/{{ item.inv.case_number }}" class="btn btn-sm">View</a>
+                        <button class="btn btn-sm btn-danger" onclick="deleteInvestigation('{{ item.inv.id }}', '{{ item.inv.case_number }}')">Del</button>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -121,6 +128,21 @@ async function createCase(e) {
         btn.disabled = false;
         btn.textContent = 'Create Case';
     }
+}
+
+async function deleteInvestigation(id, caseNumber) {
+    if (!confirm('Delete ' + caseNumber + '? This will remove all targets, findings, and reports.')) return;
+
+    try {
+        const resp = await fetch('/api/investigations/' + id, { method: 'DELETE' });
+        if (resp.ok) {
+            const row = document.getElementById('row-' + id);
+            if (row) row.remove();
+            showToast(caseNumber + ' deleted');
+        } else {
+            showToast('Failed to delete', 'error');
+        }
+    } catch(e) { showToast('Network error', 'error'); }
 }
 </script>
 {% endblock %}

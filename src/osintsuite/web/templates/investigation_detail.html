@@ -21,7 +21,8 @@
                 <a href="/" style="color: var(--dim); font-size: 0.85rem; text-decoration: none;">&larr; Dashboard</a>
             </div>
             <h1>{{ investigation.case_number }}</h1>
-            <p class="subtitle">{{ investigation.title }}</p>
+            <p class="subtitle" id="invTitle">{{ investigation.title }}</p>
+            <button class="btn btn-sm" style="margin-top: 0.4rem;" onclick="document.getElementById('editInvModal').style.display='flex'">Edit</button>
         </div>
         <div style="display: flex; align-items: center; gap: 0.75rem;">
             <select class="status-select" id="statusSelect" onchange="changeStatus(this.value)">
@@ -48,6 +49,8 @@
         <button class="btn" onclick="toggleGraph()">Network Graph</button>
         <button class="btn" onclick="document.getElementById('reportModal').style.display='flex'">Generate Report</button>
         <button class="btn" onclick="toggleNotes()">Notes</button>
+        <button class="btn btn-primary" onclick="bulkRunAll(this)">Run All Targets</button>
+        <button class="btn btn-danger" onclick="deleteInvestigation()">Delete Case</button>
     </div>
 
     <!-- Notes panel (hidden by default) -->
@@ -101,6 +104,7 @@
                 <div class="target-actions" style="margin-top: 0.75rem;">
                     <a href="/target/{{ target.id }}/profile" class="btn btn-sm">Profile</a>
                     <button class="btn btn-sm btn-primary" onclick="runAllModules('{{ target.id }}', this)">Run All</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteTarget('{{ target.id }}', '{{ target.label }}')">Del</button>
                 </div>
             </div>
             {% endfor %}
@@ -193,6 +197,25 @@
                 <button type="submit" class="btn btn-primary" id="addTargetBtn">Add Target</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Edit Investigation Modal -->
+<div id="editInvModal" class="modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal-content">
+        <h3>Edit Investigation</h3>
+        <div class="form-group">
+            <label>Title</label>
+            <input type="text" id="editTitle" value="{{ investigation.title }}">
+        </div>
+        <div class="form-group">
+            <label>Description</label>
+            <textarea id="editDesc" rows="3">{{ investigation.description or '' }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button class="btn" onclick="document.getElementById('editInvModal').style.display='none'">Cancel</button>
+            <button class="btn btn-primary" onclick="saveInvestigation()">Save</button>
+        </div>
     </div>
 </div>
 
@@ -473,6 +496,73 @@ async function generateReport() {
     } catch(e) { showToast('Network error', 'error'); }
     btn.disabled = false;
     btn.textContent = 'Generate';
+}
+
+// ── Edit investigation ───────────────────────────────────────────
+async function saveInvestigation() {
+    const title = document.getElementById('editTitle').value.trim();
+    const description = document.getElementById('editDesc').value.trim();
+    if (!title) { showToast('Title is required', 'error'); return; }
+
+    try {
+        const resp = await fetch('/api/investigations/' + INV_ID, {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({title, description: description || null})
+        });
+        if (resp.ok) {
+            document.getElementById('invTitle').textContent = title;
+            document.getElementById('editInvModal').style.display = 'none';
+            showToast('Investigation updated');
+        } else { showToast('Failed to update', 'error'); }
+    } catch(e) { showToast('Network error', 'error'); }
+}
+
+// ── Delete investigation ─────────────────────────────────────────
+async function deleteInvestigation() {
+    if (!confirm('Delete this entire investigation? All targets, findings, and reports will be permanently removed.')) return;
+    try {
+        const resp = await fetch('/api/investigations/' + INV_ID, { method: 'DELETE' });
+        if (resp.ok) {
+            showToast('Investigation deleted');
+            setTimeout(() => { window.location.href = '/'; }, 800);
+        } else { showToast('Failed to delete', 'error'); }
+    } catch(e) { showToast('Network error', 'error'); }
+}
+
+// ── Delete target ────────────────────────────────────────────────
+async function deleteTarget(targetId, label) {
+    if (!confirm('Delete target "' + label + '" and all its findings?')) return;
+    try {
+        const resp = await fetch('/api/targets/' + targetId, { method: 'DELETE' });
+        if (resp.ok) {
+            const card = document.getElementById('target-' + targetId);
+            if (card) card.remove();
+            showToast('Target "' + label + '" deleted');
+        } else { showToast('Failed to delete target', 'error'); }
+    } catch(e) { showToast('Network error', 'error'); }
+}
+
+// ── Bulk run all targets ─────────────────────────────────────────
+async function bulkRunAll(btn) {
+    if (!confirm('Run all modules on ALL targets? This may take a while.')) return;
+    btn.disabled = true;
+    btn.textContent = 'Running...';
+
+    try {
+        const resp = await fetch('/api/investigations/' + INV_ID + '/run-all', { method: 'POST' });
+        if (resp.ok) {
+            const result = await resp.json();
+            showToast(result.total_findings + ' findings from ' + result.targets_processed + ' targets');
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showToast('Bulk run failed', 'error');
+            btn.disabled = false; btn.textContent = 'Run All Targets';
+        }
+    } catch(e) {
+        showToast('Network error', 'error');
+        btn.disabled = false; btn.textContent = 'Run All Targets';
+    }
 }
 
 // ── Network Graph (D3.js) ────────────────────────────────────────

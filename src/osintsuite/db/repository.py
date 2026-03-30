@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Sequence
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -58,6 +58,19 @@ class Repository:
             update(Investigation).where(Investigation.id == investigation_id).values(**values)
         )
 
+    async def update_investigation(
+        self, investigation_id: uuid.UUID, **fields
+    ) -> None:
+        fields["updated_at"] = datetime.now(timezone.utc)
+        await self.session.execute(
+            update(Investigation).where(Investigation.id == investigation_id).values(**fields)
+        )
+
+    async def delete_investigation(self, investigation_id: uuid.UUID) -> None:
+        await self.session.execute(
+            delete(Investigation).where(Investigation.id == investigation_id)
+        )
+
     # ── Targets ─────────────────────────────────────────────────────
 
     async def add_target(
@@ -100,6 +113,15 @@ class Repository:
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
+    async def update_target(self, target_id: uuid.UUID, **fields) -> None:
+        fields["updated_at"] = datetime.now(timezone.utc)
+        await self.session.execute(
+            update(Target).where(Target.id == target_id).values(**fields)
+        )
+
+    async def delete_target(self, target_id: uuid.UUID) -> None:
+        await self.session.execute(delete(Target).where(Target.id == target_id))
+
     # ── Findings ────────────────────────────────────────────────────
 
     async def save_findings(
@@ -132,6 +154,17 @@ class Repository:
         stmt = stmt.order_by(Finding.created_at.desc())
         result = await self.session.execute(stmt)
         return result.scalars().all()
+
+    async def get_finding(self, finding_id: uuid.UUID) -> Finding | None:
+        return await self.session.get(Finding, finding_id)
+
+    async def update_finding(self, finding_id: uuid.UUID, **fields) -> None:
+        await self.session.execute(
+            update(Finding).where(Finding.id == finding_id).values(**fields)
+        )
+
+    async def delete_finding(self, finding_id: uuid.UUID) -> None:
+        await self.session.execute(delete(Finding).where(Finding.id == finding_id))
 
     # ── Module Runs ─────────────────────────────────────────────────
 

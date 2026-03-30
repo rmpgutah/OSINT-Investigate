@@ -45,6 +45,27 @@ class NoteCreate(BaseModel):
     finding_id: uuid.UUID | None = None
 
 
+class InvestigationUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+
+
+class TargetUpdate(BaseModel):
+    label: str | None = None
+    full_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    address: str | None = None
+    city: str | None = None
+    state: str | None = None
+
+
+class FindingUpdate(BaseModel):
+    is_flagged: bool | None = None
+    is_reviewed: bool | None = None
+    confidence: int | None = None
+
+
 # ── Responses ───────────────────────────────────────────────────
 
 class InvestigationResponse(BaseModel):
@@ -88,6 +109,8 @@ class FindingResponse(BaseModel):
     content: str | None
     data: dict[str, Any]
     confidence: int | None
+    is_flagged: bool = False
+    is_reviewed: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}

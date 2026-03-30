@@ -151,6 +151,8 @@ class Finding(Base):
         SmallInteger, CheckConstraint("confidence BETWEEN 0 AND 100")
     )
     raw_response: Mapped[Optional[str]] = mapped_column(Text)
+    is_flagged: Mapped[bool] = mapped_column(default=False, nullable=False)
+    is_reviewed: Mapped[bool] = mapped_column(default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

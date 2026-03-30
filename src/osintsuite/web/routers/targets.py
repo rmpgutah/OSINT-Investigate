@@ -10,7 +10,7 @@ from osintsuite.config import Settings, get_settings
 from osintsuite.db.repository import Repository
 from osintsuite.engine.investigation import InvestigationEngine
 from osintsuite.web.dependencies import get_engine, get_repo
-from osintsuite.web.schemas import ModuleRunRequest, TargetCreate, TargetResponse
+from osintsuite.web.schemas import ModuleRunRequest, TargetCreate, TargetResponse, TargetUpdate
 
 router = APIRouter()
 
@@ -77,3 +77,85 @@ async def run_modules(
 async def search_targets(query: str, repo: Repository = Depends(get_repo)):
     targets = await repo.search_targets(query)
     return [TargetResponse.model_validate(t) for t in targets]
+
+
+@router.patch("/{target_id}")
+async def update_target(
+    target_id: uuid.UUID,
+    data: TargetUpdate,
+    repo: Repository = Depends(get_repo),
+):
+    target = await repo.get_target(target_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+    fields = data.model_dump(exclude_none=True)
+    if not fields:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    await repo.update_target(target_id, **fields)
+    return {"status": "updated"}
+
+
+@router.delete("/{target_id}")
+async def delete_target(
+    target_id: uuid.UUID,
+    repo: Repository = Depends(get_repo),
+):
+    target = await repo.get_target(target_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+    await repo.delete_target(target_id)
+    return {"status": "deleted"}
+
+
+@router.get("/{target_id}/export")
+async def export_target_findings(
+    target_id: uuid.UUID,
+    format: str = "json",
+    repo: Repository = Depends(get_repo),
+):
+    """Export all findings for a single target as CSV or JSON."""
+    target = await repo.get_target(target_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+
+    findings = await repo.get_findings_by_target(target_id)
+
+    if format == "csv":
+        import csv
+        import io
+        from fastapi.responses import StreamingResponse
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["module", "source", "type", "title", "content", "confidence", "flagged", "reviewed", "created_at"])
+        for f in findings:
+            writer.writerow([
+                f.module_name, f.source, f.finding_type,
+                f.title or "", (f.content or "")[:500],
+                f.confidence, f.is_flagged, f.is_reviewed,
+                f.created_at.isoformat(),
+            ])
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={target.label}_findings.csv"},
+        )
+
+    # Default: JSON
+    return [
+        {
+            "id": str(f.id),
+            "module_name": f.module_name,
+            "source": f.source,
+            "finding_type": f.finding_type,
+            "title": f.title,
+            "content": f.content,
+            "data": f.data,
+            "confidence": f.confidence,
+            "is_flagged": f.is_flagged,
+            "is_reviewed": f.is_reviewed,
+            "created_at": f.created_at.isoformat(),
+        }
+        for f in findings
+    ]

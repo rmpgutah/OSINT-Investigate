@@ -15,7 +15,31 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templa
 
 @router.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def dashboard(request: Request, repo: Repository = Depends(get_repo)):
+    from sqlalchemy import select, func as sqlfunc
+    from osintsuite.db.models import Target, Finding
+
     investigations = await repo.list_investigations()
+
+    # Enrich with target/finding counts
+    enriched = []
+    for inv in investigations:
+        tgt_count = (await repo.session.execute(
+            select(sqlfunc.count(Target.id)).where(Target.investigation_id == inv.id)
+        )).scalar_one()
+
+        # Count findings across all targets in this investigation
+        finding_count = (await repo.session.execute(
+            select(sqlfunc.count(Finding.id))
+            .join(Target, Finding.target_id == Target.id)
+            .where(Target.investigation_id == inv.id)
+        )).scalar_one()
+
+        enriched.append({
+            "inv": inv,
+            "target_count": tgt_count,
+            "finding_count": finding_count,
+        })
+
     stats = {
         "total_cases": len(investigations),
         "open_cases": sum(1 for i in investigations if i.status == "open"),
@@ -25,7 +49,7 @@ async def dashboard(request: Request, repo: Repository = Depends(get_repo)):
     return templates.TemplateResponse(
         request,
         "dashboard.html",
-        context={"investigations": investigations, "stats": stats},
+        context={"investigations": enriched, "stats": stats},
     )
 
 

@@ -2,6 +2,24 @@
 
 {% block title %}{{ target.label }} — OSINT Suite{% endblock %}
 
+{% block head %}
+<style>
+.filter-bar { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; padding: 0.75rem 1rem; background: var(--card); border: 1px solid var(--border); border-radius: var(--r); }
+.filter-bar input, .filter-bar select { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r); padding: 0.4rem 0.7rem; color: var(--text); font-size: 0.82rem; font-family: inherit; }
+.filter-bar input:focus, .filter-bar select:focus { outline: none; border-color: var(--accent); }
+.filter-bar label { color: var(--muted); font-size: 0.78rem; font-weight: 500; }
+.filter-bar .filter-group { display: flex; align-items: center; gap: 0.35rem; }
+.flag-btn { background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 0.1rem 0.3rem; opacity: 0.3; transition: opacity 0.15s; }
+.flag-btn:hover, .flag-btn.active { opacity: 1; }
+.review-btn { background: none; border: none; cursor: pointer; font-size: 1rem; padding: 0.1rem 0.3rem; opacity: 0.3; transition: opacity 0.15s; }
+.review-btn:hover, .review-btn.active { opacity: 1; color: var(--green); }
+tr.flagged { border-left: 3px solid var(--yellow); }
+tr.reviewed { opacity: 0.6; }
+.finding-row { cursor: pointer; }
+.finding-row:hover td { color: var(--text); }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="target-profile">
     <div class="page-header">
@@ -12,7 +30,16 @@
             <h1>{{ target.label }}</h1>
             <span class="badge badge-type" style="margin-top: 0.3rem;">{{ target.target_type }}</span>
         </div>
-        <button class="btn btn-primary" onclick="runModules()">Run All Modules</button>
+        <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-primary" onclick="runModules(this)">Run All Modules</button>
+            <div style="position: relative; display: inline-block;">
+                <button class="btn" onclick="this.nextElementSibling.classList.toggle('active')">Export</button>
+                <div class="search-results" style="display: none; width: 160px; top: calc(100% + 4px); left: 0; right: auto;">
+                    <a href="/api/targets/{{ target.id }}/export?format=csv" style="display: block; padding: 0.5rem 0.75rem; font-size: 0.85rem;">Export CSV</a>
+                    <a href="/api/targets/{{ target.id }}/export?format=json" style="display: block; padding: 0.5rem 0.75rem; font-size: 0.85rem;">Export JSON</a>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="profile-grid">
@@ -20,40 +47,22 @@
             <h3>Target Information</h3>
             <div class="info-grid">
                 {% if target.full_name %}
-                <div class="info-item">
-                    <strong>Full Name</strong>
-                    <span>{{ target.full_name }}</span>
-                </div>
+                <div class="info-item"><strong>Full Name</strong><span>{{ target.full_name }}</span></div>
                 {% endif %}
                 {% if target.email %}
-                <div class="info-item">
-                    <strong>Email</strong>
-                    <span>{{ target.email }}</span>
-                </div>
+                <div class="info-item"><strong>Email</strong><span>{{ target.email }}</span></div>
                 {% endif %}
                 {% if target.phone %}
-                <div class="info-item">
-                    <strong>Phone</strong>
-                    <span>{{ target.phone }}</span>
-                </div>
+                <div class="info-item"><strong>Phone</strong><span>{{ target.phone }}</span></div>
                 {% endif %}
                 {% if target.address %}
-                <div class="info-item">
-                    <strong>Address</strong>
-                    <span>{{ target.address }}</span>
-                </div>
+                <div class="info-item"><strong>Address</strong><span>{{ target.address }}</span></div>
                 {% endif %}
                 {% if target.date_of_birth %}
-                <div class="info-item">
-                    <strong>Date of Birth</strong>
-                    <span>{{ target.date_of_birth }}</span>
-                </div>
+                <div class="info-item"><strong>Date of Birth</strong><span>{{ target.date_of_birth }}</span></div>
                 {% endif %}
                 {% if target.city %}
-                <div class="info-item">
-                    <strong>Location</strong>
-                    <span>{{ target.city }}{% if target.state %}, {{ target.state }}{% endif %}</span>
-                </div>
+                <div class="info-item"><strong>Location</strong><span>{{ target.city }}{% if target.state %}, {{ target.state }}{% endif %}</span></div>
                 {% endif %}
             </div>
         </div>
@@ -61,11 +70,13 @@
         <div class="card">
             <h3>Summary</h3>
             {% set total_findings = findings_by_module.values()|map('length')|sum %}
-            <div style="text-align: center; padding: 1rem 0;">
-                <div style="font-size: 2.5rem; font-weight: 800; color: var(--accent);">
-                    {{ findings_by_module|length }}
-                </div>
-                <div style="color: var(--dim); font-size: 0.85rem;">Modules with results</div>
+            <div style="text-align: center; padding: 0.5rem 0;">
+                <div style="font-size: 2.5rem; font-weight: 800; color: var(--accent);">{{ total_findings }}</div>
+                <div style="color: var(--dim); font-size: 0.85rem;">Total Findings</div>
+            </div>
+            <div style="text-align: center; padding: 0.5rem 0;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: var(--dim);">{{ findings_by_module|length }}</div>
+                <div style="color: var(--muted); font-size: 0.8rem;">Modules</div>
             </div>
         </div>
     </div>
@@ -74,49 +85,115 @@
         <h2 style="margin-bottom: 1rem;">Findings</h2>
 
         {% if findings_by_module %}
+        <!-- Filter bar -->
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label>Search</label>
+                <input type="text" id="filterSearch" placeholder="Filter by title..." oninput="applyFilters()">
+            </div>
+            <div class="filter-group">
+                <label>Min Confidence</label>
+                <input type="range" id="filterConfidence" min="0" max="100" value="0" oninput="applyFilters(); this.nextElementSibling.textContent=this.value+'%'" style="width: 80px;">
+                <span style="color: var(--dim); font-size: 0.78rem; min-width: 2.5rem;">0%</span>
+            </div>
+            <div class="filter-group">
+                <label>Show</label>
+                <select id="filterShow" onchange="applyFilters()">
+                    <option value="all">All</option>
+                    <option value="flagged">Flagged Only</option>
+                    <option value="unreviewed">Unreviewed</option>
+                </select>
+            </div>
+            <div style="flex: 1;"></div>
+            <span id="filterCount" style="color: var(--muted); font-size: 0.78rem;"></span>
+        </div>
+
         <div class="findings-tabs">
             <div class="tab-nav">
+                <button class="tab-btn active" onclick="showTab('all', this)">All ({{ total_findings }})</button>
                 {% for module_name in findings_by_module %}
-                <button class="tab-btn {% if loop.first %}active{% endif %}"
-                        onclick="showTab('{{ module_name }}', this)">
+                <button class="tab-btn" onclick="showTab('{{ module_name }}', this)">
                     {{ module_name.replace('_', ' ').title() }}
                     <span style="opacity: 0.6; margin-left: 0.3rem;">({{ findings_by_module[module_name]|length }})</span>
                 </button>
                 {% endfor %}
             </div>
 
-            {% for module_name, findings in findings_by_module.items() %}
-            <div class="tab-content {% if loop.first %}active{% endif %}" id="tab-{{ module_name }}">
-                <table class="data-table" style="border-top: none; border-radius: 0 0 var(--r) var(--r);">
+            <!-- All findings table -->
+            <div class="tab-content active" id="tab-all">
+                <table class="data-table" id="findingsTable" style="border-top: none; border-radius: 0 0 var(--r) var(--r);">
                     <thead>
                         <tr>
+                            <th style="width: 3rem;"></th>
+                            <th>Module</th>
                             <th>Source</th>
-                            <th>Type</th>
                             <th>Title</th>
                             <th>Confidence</th>
                             <th>Date</th>
+                            <th style="width: 3rem;"></th>
                         </tr>
                     </thead>
                     <tbody>
+                        {% for module_name, findings in findings_by_module.items() %}
                         {% for finding in findings %}
-                        <tr>
-                            <td><span class="badge">{{ finding.source }}</span></td>
-                            <td style="color: var(--dim);">{{ finding.finding_type }}</td>
+                        <tr class="finding-row {% if finding.is_flagged %}flagged{% endif %} {% if finding.is_reviewed %}reviewed{% endif %}"
+                            data-id="{{ finding.id }}"
+                            data-module="{{ finding.module_name }}"
+                            data-confidence="{{ finding.confidence or 0 }}"
+                            data-flagged="{{ finding.is_flagged|lower }}"
+                            data-reviewed="{{ finding.is_reviewed|lower }}"
+                            data-title="{{ finding.title or '' }}"
+                            data-content="{{ finding.content or '' }}"
+                            data-source="{{ finding.source }}"
+                            data-type="{{ finding.finding_type }}"
+                            data-date="{{ finding.created_at.strftime('%m/%d %H:%M') }}">
                             <td>
+                                <button class="flag-btn {% if finding.is_flagged %}active{% endif %}" onclick="event.stopPropagation(); toggleFlag('{{ finding.id }}', this)" title="Flag as important">&#9733;</button>
+                                <button class="review-btn {% if finding.is_reviewed %}active{% endif %}" onclick="event.stopPropagation(); toggleReview('{{ finding.id }}', this)" title="Mark reviewed">&#10003;</button>
+                            </td>
+                            <td><span class="badge badge-type" style="font-size: 0.7rem;">{{ finding.module_name.replace('_', ' ') }}</span></td>
+                            <td><span class="badge">{{ finding.source }}</span></td>
+                            <td onclick="showFindingDetail('{{ finding.id }}')">
                                 {% if finding.content and finding.content.startswith('http') %}
-                                <a href="{{ finding.content }}" target="_blank" rel="noopener">{{ finding.title or finding.content[:60] }}</a>
+                                <a href="{{ finding.content }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ finding.title or finding.content[:60] }}</a>
                                 {% else %}
-                                {{ finding.title or '—' }}
+                                {{ finding.title or '\u2014' }}
                                 {% endif %}
                             </td>
                             <td>
                                 {% if finding.confidence is not none %}
-                                <span class="confidence confidence-{{ 'high' if finding.confidence > 70 else 'medium' if finding.confidence > 40 else 'low' }}">
-                                    {{ finding.confidence }}%
-                                </span>
+                                <span class="confidence confidence-{{ 'high' if finding.confidence > 70 else 'medium' if finding.confidence > 40 else 'low' }}">{{ finding.confidence }}%</span>
                                 {% else %}
-                                <span style="color: var(--muted);">—</span>
+                                <span style="color: var(--muted);">\u2014</span>
                                 {% endif %}
+                            </td>
+                            <td style="color: var(--dim); font-size: 0.82rem;">{{ finding.created_at.strftime('%m/%d %H:%M') }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;" onclick="event.stopPropagation(); deleteFinding('{{ finding.id }}', this)" title="Delete">&#10005;</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% for module_name, findings in findings_by_module.items() %}
+            <div class="tab-content" id="tab-{{ module_name }}">
+                <table class="data-table" style="border-top: none; border-radius: 0 0 var(--r) var(--r);">
+                    <thead>
+                        <tr><th>Source</th><th>Type</th><th>Title</th><th>Confidence</th><th>Date</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for finding in findings %}
+                        <tr class="finding-row" onclick="showFindingDetail('{{ finding.id }}')">
+                            <td><span class="badge">{{ finding.source }}</span></td>
+                            <td style="color: var(--dim);">{{ finding.finding_type }}</td>
+                            <td>{{ finding.title or '\u2014' }}</td>
+                            <td>
+                                {% if finding.confidence is not none %}
+                                <span class="confidence confidence-{{ 'high' if finding.confidence > 70 else 'medium' if finding.confidence > 40 else 'low' }}">{{ finding.confidence }}%</span>
+                                {% else %}<span style="color: var(--muted);">\u2014</span>{% endif %}
                             </td>
                             <td style="color: var(--dim); font-size: 0.85rem;">{{ finding.created_at.strftime('%m/%d %H:%M') }}</td>
                         </tr>
@@ -135,10 +212,20 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Finding Detail Modal -->
+<div id="findingModal" class="modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal-content" style="max-width: 700px; max-height: 80vh; overflow-y: auto;">
+        <h3 id="modalTitle">Finding Detail</h3>
+        <div id="modalBody"></div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+const TARGET_ID = "{{ target.id }}";
+
 function showTab(name, btn) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -146,13 +233,11 @@ function showTab(name, btn) {
     btn.classList.add('active');
 }
 
-async function runModules() {
-    const btn = event.target;
+async function runModules(btn) {
     btn.disabled = true;
     btn.textContent = 'Running...';
-
     try {
-        const response = await fetch('/api/targets/{{ target.id }}/run', {
+        const response = await fetch('/api/targets/' + TARGET_ID + '/run', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({})
@@ -161,14 +246,144 @@ async function runModules() {
             const result = await response.json();
             showToast(result.total_findings + ' findings collected');
             setTimeout(() => window.location.reload(), 1200);
-        } else {
-            showToast('Module run failed', 'error');
-        }
-    } catch (err) {
-        showToast('Network error', 'error');
-    }
+        } else { showToast('Module run failed', 'error'); }
+    } catch (err) { showToast('Network error', 'error'); }
     btn.disabled = false;
     btn.textContent = 'Run All Modules';
 }
+
+// ── Filters ──────────────────────────────────────────────────────
+function applyFilters() {
+    const search = document.getElementById('filterSearch').value.toLowerCase();
+    const minConf = parseInt(document.getElementById('filterConfidence').value);
+    const show = document.getElementById('filterShow').value;
+    const rows = document.querySelectorAll('#findingsTable tbody tr');
+    let visible = 0;
+
+    rows.forEach(row => {
+        const title = (row.dataset.title || '').toLowerCase();
+        const content = (row.dataset.content || '').toLowerCase();
+        const conf = parseInt(row.dataset.confidence) || 0;
+        const flagged = row.dataset.flagged === 'true';
+        const reviewed = row.dataset.reviewed === 'true';
+
+        let pass = true;
+        if (search && !title.includes(search) && !content.includes(search)) pass = false;
+        if (conf < minConf) pass = false;
+        if (show === 'flagged' && !flagged) pass = false;
+        if (show === 'unreviewed' && reviewed) pass = false;
+
+        row.style.display = pass ? '' : 'none';
+        if (pass) visible++;
+    });
+
+    document.getElementById('filterCount').textContent = visible + ' / ' + rows.length + ' shown';
+}
+
+// ── Flag / Review toggles ────────────────────────────────────────
+async function toggleFlag(findingId, btn) {
+    const isActive = btn.classList.contains('active');
+    try {
+        const resp = await fetch('/api/findings/' + findingId, {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({is_flagged: !isActive})
+        });
+        if (resp.ok) {
+            btn.classList.toggle('active');
+            const row = btn.closest('tr');
+            row.classList.toggle('flagged');
+            row.dataset.flagged = (!isActive).toString();
+        }
+    } catch(e) { showToast('Failed to update', 'error'); }
+}
+
+async function toggleReview(findingId, btn) {
+    const isActive = btn.classList.contains('active');
+    try {
+        const resp = await fetch('/api/findings/' + findingId, {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({is_reviewed: !isActive})
+        });
+        if (resp.ok) {
+            btn.classList.toggle('active');
+            const row = btn.closest('tr');
+            row.classList.toggle('reviewed');
+            row.dataset.reviewed = (!isActive).toString();
+        }
+    } catch(e) { showToast('Failed to update', 'error'); }
+}
+
+// ── Delete finding ───────────────────────────────────────────────
+async function deleteFinding(findingId, btn) {
+    if (!confirm('Delete this finding?')) return;
+    try {
+        const resp = await fetch('/api/findings/' + findingId, { method: 'DELETE' });
+        if (resp.ok) {
+            const row = btn.closest('tr');
+            if (row) row.remove();
+            showToast('Finding deleted');
+            applyFilters();
+        } else { showToast('Failed to delete', 'error'); }
+    } catch(e) { showToast('Network error', 'error'); }
+}
+
+// ── Finding detail modal ─────────────────────────────────────────
+async function showFindingDetail(findingId) {
+    const modal = document.getElementById('findingModal');
+    const title = document.getElementById('modalTitle');
+    const body = document.getElementById('modalBody');
+    title.textContent = 'Loading...';
+    body.replaceChildren();
+    modal.style.display = 'flex';
+
+    try {
+        const resp = await fetch('/api/findings/' + findingId);
+        if (!resp.ok) { title.textContent = 'Not found'; return; }
+        const f = await resp.json();
+
+        title.textContent = f.title || f.finding_type;
+
+        // Build detail view using safe DOM methods
+        const section = (label, value) => {
+            const div = el('div', {style: 'margin-bottom: 1rem;'});
+            div.appendChild(el('strong', {text: label, style: 'display: block; color: var(--muted); font-size: 0.78rem; text-transform: uppercase; margin-bottom: 0.2rem;'}));
+            div.appendChild(el('span', {text: value || '\u2014', style: 'font-size: 0.92rem;'}));
+            return div;
+        };
+
+        const grid = el('div', {style: 'display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;'});
+        grid.appendChild(section('Module', f.module_name));
+        grid.appendChild(section('Source', f.source));
+        grid.appendChild(section('Type', f.finding_type));
+        grid.appendChild(section('Confidence', f.confidence !== null ? f.confidence + '%' : '\u2014'));
+        grid.appendChild(section('Flagged', f.is_flagged ? 'Yes' : 'No'));
+        grid.appendChild(section('Reviewed', f.is_reviewed ? 'Yes' : 'No'));
+        body.appendChild(grid);
+
+        if (f.content) {
+            body.appendChild(section('Content', f.content));
+        }
+
+        // Data dict
+        if (f.data && Object.keys(f.data).length > 0) {
+            const dataSection = el('div', {style: 'margin-bottom: 1rem;'});
+            dataSection.appendChild(el('strong', {text: 'Data', style: 'display: block; color: var(--muted); font-size: 0.78rem; text-transform: uppercase; margin-bottom: 0.4rem;'}));
+            const pre = el('pre', {text: JSON.stringify(f.data, null, 2), style: 'background: var(--bg); padding: 0.75rem; border-radius: var(--r); font-size: 0.8rem; overflow-x: auto; max-height: 300px; overflow-y: auto; color: var(--dim);'});
+            dataSection.appendChild(pre);
+            body.appendChild(dataSection);
+        }
+
+        body.appendChild(section('Created', new Date(f.created_at).toLocaleString()));
+
+    } catch(e) {
+        title.textContent = 'Error';
+        body.appendChild(el('p', {text: 'Failed to load finding details.', style: 'color: var(--red);'}));
+    }
+}
+
+// Init filter count
+applyFilters();
 </script>
 {% endblock %}
