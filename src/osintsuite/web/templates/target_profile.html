@@ -25,9 +25,9 @@ tr.reviewed { opacity: 0.6; }
     <div class="page-header">
         <div>
             <nav class="breadcrumbs">
-                <a href="/">Dashboard</a>
+                <a href="{{ request.scope.get('root_path', '') }}/">Dashboard</a>
                 <span class="bc-sep">&#9656;</span>
-                <a href="/investigation/{{ investigation.case_number }}">{{ investigation.case_number }}</a>
+                <a href="{{ request.scope.get('root_path', '') }}/investigation/{{ investigation.case_number }}">{{ investigation.case_number }}</a>
                 <span class="bc-sep">&#9656;</span>
                 <span class="bc-current">{{ target.label }}</span>
             </nav>
@@ -39,8 +39,8 @@ tr.reviewed { opacity: 0.6; }
             <div style="position: relative; display: inline-block;">
                 <button class="btn" onclick="this.nextElementSibling.classList.toggle('active')">Export</button>
                 <div class="search-results" style="display: none; width: 160px; top: calc(100% + 4px); left: 0; right: auto;">
-                    <a href="/api/targets/{{ target.id }}/export?format=csv" style="display: block; padding: 0.5rem 0.75rem; font-size: 0.85rem;">Export CSV</a>
-                    <a href="/api/targets/{{ target.id }}/export?format=json" style="display: block; padding: 0.5rem 0.75rem; font-size: 0.85rem;">Export JSON</a>
+                    <a href="{{ request.scope.get('root_path', '') }}/api/targets/{{ target.id }}/export?format=csv" style="display: block; padding: 0.5rem 0.75rem; font-size: 0.85rem;">Export CSV</a>
+                    <a href="{{ request.scope.get('root_path', '') }}/api/targets/{{ target.id }}/export?format=json" style="display: block; padding: 0.5rem 0.75rem; font-size: 0.85rem;">Export JSON</a>
                 </div>
             </div>
         </div>
@@ -261,7 +261,7 @@ async function runModules(btn) {
     btn.disabled = true;
     btn.textContent = 'Running...';
     try {
-        const response = await fetch('/api/targets/' + TARGET_ID + '/run', {
+        const response = await fetch(BASE + '/api/targets/' + TARGET_ID + '/run', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({})
@@ -379,21 +379,21 @@ async function bulkAction(action) {
         const id = cb.dataset.findingId;
         try {
             if (action === 'flag') {
-                await fetch('/api/findings/' + id, { method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({is_flagged: true}) });
+                await fetch(BASE + '/api/findings/' + id, { method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({is_flagged: true}) });
                 const row = cb.closest('tr');
                 row.classList.add('flagged');
                 row.dataset.flagged = 'true';
                 const flagBtn = row.querySelector('.flag-btn');
                 if (flagBtn) flagBtn.classList.add('active');
             } else if (action === 'review') {
-                await fetch('/api/findings/' + id, { method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({is_reviewed: true}) });
+                await fetch(BASE + '/api/findings/' + id, { method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({is_reviewed: true}) });
                 const row = cb.closest('tr');
                 row.classList.add('reviewed');
                 row.dataset.reviewed = 'true';
                 const revBtn = row.querySelector('.review-btn');
                 if (revBtn) revBtn.classList.add('active');
             } else if (action === 'delete') {
-                const resp = await fetch('/api/findings/' + id, { method: 'DELETE' });
+                const resp = await fetch(BASE + '/api/findings/' + id, { method: 'DELETE' });
                 if (resp.ok) { const row = cb.closest('tr'); if (row) row.remove(); }
             }
             success++;
@@ -408,7 +408,7 @@ async function bulkAction(action) {
 async function toggleFlag(findingId, btn) {
     const isActive = btn.classList.contains('active');
     try {
-        const resp = await fetch('/api/findings/' + findingId, {
+        const resp = await fetch(BASE + '/api/findings/' + findingId, {
             method: 'PATCH',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({is_flagged: !isActive})
@@ -425,7 +425,7 @@ async function toggleFlag(findingId, btn) {
 async function toggleReview(findingId, btn) {
     const isActive = btn.classList.contains('active');
     try {
-        const resp = await fetch('/api/findings/' + findingId, {
+        const resp = await fetch(BASE + '/api/findings/' + findingId, {
             method: 'PATCH',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({is_reviewed: !isActive})
@@ -443,7 +443,7 @@ async function toggleReview(findingId, btn) {
 async function deleteFinding(findingId, btn) {
     if (!confirm('Delete this finding?')) return;
     try {
-        const resp = await fetch('/api/findings/' + findingId, { method: 'DELETE' });
+        const resp = await fetch(BASE + '/api/findings/' + findingId, { method: 'DELETE' });
         if (resp.ok) {
             const row = btn.closest('tr');
             if (row) row.remove();
@@ -463,7 +463,7 @@ async function showFindingDetail(findingId) {
     modal.style.display = 'flex';
 
     try {
-        const resp = await fetch('/api/findings/' + findingId);
+        const resp = await fetch(BASE + '/api/findings/' + findingId);
         if (!resp.ok) { title.textContent = 'Not found'; return; }
         const f = await resp.json();
 

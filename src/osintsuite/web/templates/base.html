@@ -275,11 +275,11 @@
     <nav class="navbar">
         <div class="nav-brand">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <a href="/">OSINT Suite</a>
+            <a href="{{ request.scope.get('root_path', '') }}/">OSINT Suite</a>
         </div>
         <div class="nav-links">
-            <a href="/">Dashboard</a>
-            <a href="/api/investigations" target="_blank">API</a>
+            <a href="{{ request.scope.get('root_path', '') }}/">Dashboard</a>
+            <a href="{{ request.scope.get('root_path', '') }}/api/investigations" target="_blank">API</a>
             <button class="theme-toggle" id="themeToggle" title="Toggle light/dark theme" onclick="toggleTheme()">
                 <span id="themeIcon">&#9788;</span>
             </button>
@@ -315,6 +315,9 @@
     </div>
 
     <script>
+    // BASE path for reverse proxy support (e.g. "/osint" when behind nginx at /osint/)
+    const BASE = '{{ request.scope.get("root_path", "") }}';
+
     function showToast(msg, type = 'success') {
         const t = document.getElementById('toast');
         t.textContent = msg;
@@ -355,14 +358,14 @@
             if (q.length < 2) { results.classList.remove('active'); return; }
             debounce = setTimeout(async () => {
                 try {
-                    const resp = await fetch('/api/modules/search?q=' + encodeURIComponent(q));
+                    const resp = await fetch(BASE + '/api/modules/search?q=' + encodeURIComponent(q));
                     const data = await resp.json();
                     results.replaceChildren();
 
                     if (data.investigations.length) {
                         results.appendChild(el('div', {class: 'sr-section', text: 'Cases'}));
                         data.investigations.forEach(i => {
-                            const link = el('a', {href: '/investigation/' + i.case_number});
+                            const link = el('a', {href: BASE + '/investigation/' + i.case_number});
                             link.appendChild(document.createTextNode(i.case_number + ' \u2014 ' + i.title + ' '));
                             link.appendChild(el('small', {text: i.status}));
                             results.appendChild(link);
@@ -371,7 +374,7 @@
                     if (data.targets.length) {
                         results.appendChild(el('div', {class: 'sr-section', text: 'Targets'}));
                         data.targets.forEach(t => {
-                            const link = el('a', {href: '/target/' + t.id + '/profile'});
+                            const link = el('a', {href: BASE + '/target/' + t.id + '/profile'});
                             link.appendChild(document.createTextNode(t.label + ' '));
                             link.appendChild(el('small', {text: t.target_type}));
                             results.appendChild(link);
@@ -425,14 +428,14 @@
             if (q.length < 1) { results.replaceChildren(); _cpItems = []; _cpIndex = -1; return; }
             debounce = setTimeout(async () => {
                 try {
-                    const resp = await fetch('/api/modules/search?q=' + encodeURIComponent(q));
+                    const resp = await fetch(BASE + '/api/modules/search?q=' + encodeURIComponent(q));
                     const data = await resp.json();
                     results.replaceChildren();
                     _cpItems = [];
                     _cpIndex = -1;
 
                     data.investigations.forEach(i => {
-                        const item = el('a', {class: 'cp-item', href: '/investigation/' + i.case_number});
+                        const item = el('a', {class: 'cp-item', href: BASE + '/investigation/' + i.case_number});
                         item.appendChild(el('span', {class: 'cp-icon', text: '\u{1F4C1}'}));
                         const label = el('span', {class: 'cp-label'});
                         label.textContent = i.case_number + ' \u2014 ' + i.title;
@@ -442,7 +445,7 @@
                         _cpItems.push(item);
                     });
                     data.targets.forEach(t => {
-                        const item = el('a', {class: 'cp-item', href: '/target/' + t.id + '/profile'});
+                        const item = el('a', {class: 'cp-item', href: BASE + '/target/' + t.id + '/profile'});
                         item.appendChild(el('span', {class: 'cp-icon', text: '\u{1F464}'}));
                         const label = el('span', {class: 'cp-label'});
                         label.textContent = t.label;

@@ -19,10 +19,12 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    root_path = getattr(settings, "root_path", "") or ""
     app = FastAPI(
         title=settings.app_name,
         version="0.1.0",
         description="OSINT Investigation Suite — Web Interface",
+        root_path=root_path,
     )
 
     @app.on_event("startup")

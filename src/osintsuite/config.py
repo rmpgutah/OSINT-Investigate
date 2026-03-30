@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     # Web interface
     web_host: str = "127.0.0.1"
     web_port: int = 8000
+    root_path: str = ""
 
     model_config = {"env_file": ".env", "env_prefix": "OSINT_"}
 

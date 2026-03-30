@@ -23,7 +23,7 @@
     <div class="page-header">
         <div>
             <nav class="breadcrumbs">
-                <a href="/">Dashboard</a>
+                <a href="{{ request.scope.get('root_path', '') }}/">Dashboard</a>
                 <span class="bc-sep">&#9656;</span>
                 <span class="bc-current">{{ investigation.case_number }}</span>
             </nav>
@@ -55,7 +55,7 @@
         <button class="btn btn-primary" onclick="document.getElementById('addTargetModal').style.display='flex'">+ Add Target</button>
         <button class="btn" onclick="runCorrelations()">Correlate Targets</button>
         <button class="btn" onclick="toggleGraph()">Network Graph</button>
-        <a class="btn" href="/investigation/{{ investigation.case_number }}/summary">Summary</a>
+        <a class="btn" href="{{ request.scope.get('root_path', '') }}/investigation/{{ investigation.case_number }}/summary">Summary</a>
         <button class="btn" onclick="document.getElementById('reportModal').style.display='flex'">Generate Report</button>
         <button class="btn" onclick="toggleNotes()">Notes</button>
         <button class="btn btn-primary" onclick="bulkRunAll(this)">Run All Targets</button>
@@ -96,7 +96,7 @@
             <div class="card target-card" id="target-{{ target.id }}">
                 <div class="target-header">
                     <span class="badge badge-type">{{ target.target_type }}</span>
-                    <a href="/target/{{ target.id }}/profile">{{ target.label }}</a>
+                    <a href="{{ request.scope.get('root_path', '') }}/target/{{ target.id }}/profile">{{ target.label }}</a>
                 </div>
                 <div class="target-details">
                     {% if target.full_name %}<p><strong>Name:</strong> {{ target.full_name }}</p>{% endif %}
@@ -111,7 +111,7 @@
                 <!-- Module pills: individual module controls -->
                 <div class="module-pills" id="modules-{{ target.id }}"></div>
                 <div class="target-actions" style="margin-top: 0.75rem;">
-                    <a href="/target/{{ target.id }}/profile" class="btn btn-sm">Profile</a>
+                    <a href="{{ request.scope.get('root_path', '') }}/target/{{ target.id }}/profile" class="btn btn-sm">Profile</a>
                     <button class="btn btn-sm btn-primary" onclick="runAllModules('{{ target.id }}', this)">Run All</button>
                     <button class="btn btn-sm btn-danger" onclick="deleteTarget('{{ target.id }}', '{{ target.label }}')">Del</button>
                 </div>
@@ -143,7 +143,7 @@
                     <td>{{ report.title }}</td>
                     <td><span class="badge">{{ report.format }}</span></td>
                     <td style="color: var(--dim);">{{ report.generated_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                    <td><a href="/api/reports/{{ report.id }}/download" class="btn btn-sm">Download</a></td>
+                    <td><a href="{{ request.scope.get('root_path', '') }}/api/reports/{{ report.id }}/download" class="btn btn-sm">Download</a></td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -256,7 +256,7 @@ const INV_ID = "{{ investigation.id }}";
 // ── Status change ────────────────────────────────────────────────
 async function changeStatus(newStatus) {
     try {
-        await fetch('/api/investigations/' + INV_ID + '/status?status=' + newStatus, { method: 'PATCH' });
+        await fetch(BASE + '/api/investigations/' + INV_ID + '/status?status=' + newStatus, { method: 'PATCH' });
         const badge = document.getElementById('statusBadge');
         badge.textContent = newStatus;
         badge.className = 'badge badge-' + newStatus;
@@ -284,7 +284,7 @@ async function addTarget(e) {
     };
 
     try {
-        const response = await fetch('/api/targets/', {
+        const response = await fetch(BASE + '/api/targets/', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
@@ -312,7 +312,7 @@ async function loadModulePills() {
         if (!container) continue;
 
         try {
-            const resp = await fetch('/api/modules/for-target/' + targetId);
+            const resp = await fetch(BASE + '/api/modules/for-target/' + targetId);
             const data = await resp.json();
             container.replaceChildren();
             data.modules.forEach(mod => {
@@ -328,7 +328,7 @@ async function runSingleModule(targetId, moduleName, pill) {
     pill.classList.add('running');
     pill.textContent = moduleName.replace(/_/g, ' ') + '...';
     try {
-        const resp = await fetch('/api/targets/' + targetId + '/run', {
+        const resp = await fetch(BASE + '/api/targets/' + targetId + '/run', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({module_name: moduleName})
@@ -359,7 +359,7 @@ async function runAllModules(targetId, btn) {
     document.querySelectorAll('#modules-' + targetId + ' .module-pill').forEach(p => p.classList.add('running'));
 
     try {
-        const resp = await fetch('/api/targets/' + targetId + '/run', {
+        const resp = await fetch(BASE + '/api/targets/' + targetId + '/run', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({})
@@ -397,7 +397,7 @@ async function runCorrelations() {
     results.appendChild(el('p', {text: 'Analyzing...', style: 'color: var(--dim); padding: 1rem;'}));
 
     try {
-        const resp = await fetch('/api/modules/correlations/' + INV_ID);
+        const resp = await fetch(BASE + '/api/modules/correlations/' + INV_ID);
         const data = await resp.json();
         results.replaceChildren();
 
@@ -442,7 +442,7 @@ async function loadNotes() {
     const list = document.getElementById('noteList');
     list.replaceChildren();
     try {
-        const resp = await fetch('/api/modules/notes?investigation_id=' + INV_ID);
+        const resp = await fetch(BASE + '/api/modules/notes?investigation_id=' + INV_ID);
         const notes = await resp.json();
         if (!notes.length) {
             list.appendChild(el('p', {text: 'No notes yet.', style: 'color: var(--muted); padding: 1rem; text-align: center;'}));
@@ -464,7 +464,7 @@ async function addNote() {
     if (!content) return;
 
     try {
-        const resp = await fetch('/api/modules/notes', {
+        const resp = await fetch(BASE + '/api/modules/notes', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({content: content, investigation_id: INV_ID})
@@ -489,7 +489,7 @@ async function generateReport() {
     const format = document.getElementById('reportFormat').value;
 
     try {
-        const resp = await fetch('/api/reports/?investigation_id=' + INV_ID, {
+        const resp = await fetch(BASE + '/api/reports/?investigation_id=' + INV_ID, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({format: format})
@@ -514,7 +514,7 @@ async function saveInvestigation() {
     if (!title) { showToast('Title is required', 'error'); return; }
 
     try {
-        const resp = await fetch('/api/investigations/' + INV_ID, {
+        const resp = await fetch(BASE + '/api/investigations/' + INV_ID, {
             method: 'PATCH',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({title, description: description || null})
@@ -531,10 +531,10 @@ async function saveInvestigation() {
 async function deleteInvestigation() {
     if (!confirm('Delete this entire investigation? All targets, findings, and reports will be permanently removed.')) return;
     try {
-        const resp = await fetch('/api/investigations/' + INV_ID, { method: 'DELETE' });
+        const resp = await fetch(BASE + '/api/investigations/' + INV_ID, { method: 'DELETE' });
         if (resp.ok) {
             showToast('Investigation deleted');
-            setTimeout(() => { window.location.href = '/'; }, 800);
+            setTimeout(() => { window.location.href = BASE + '/'; }, 800);
         } else { showToast('Failed to delete', 'error'); }
     } catch(e) { showToast('Network error', 'error'); }
 }
@@ -543,7 +543,7 @@ async function deleteInvestigation() {
 async function deleteTarget(targetId, label) {
     if (!confirm('Delete target "' + label + '" and all its findings?')) return;
     try {
-        const resp = await fetch('/api/targets/' + targetId, { method: 'DELETE' });
+        const resp = await fetch(BASE + '/api/targets/' + targetId, { method: 'DELETE' });
         if (resp.ok) {
             const card = document.getElementById('target-' + targetId);
             if (card) card.remove();
@@ -559,7 +559,7 @@ async function bulkRunAll(btn) {
     btn.textContent = 'Running...';
 
     try {
-        const resp = await fetch('/api/investigations/' + INV_ID + '/run-all', { method: 'POST' });
+        const resp = await fetch(BASE + '/api/investigations/' + INV_ID + '/run-all', { method: 'POST' });
         if (resp.ok) {
             const result = await resp.json();
             showToast(result.total_findings + ' findings from ' + result.targets_processed + ' targets');
@@ -590,7 +590,7 @@ async function loadGraph() {
     container.appendChild(el('p', {text: 'Loading graph...', style: 'color: var(--dim); padding: 2rem; text-align: center;'}));
 
     try {
-        const resp = await fetch('/api/modules/graph/' + INV_ID);
+        const resp = await fetch(BASE + '/api/modules/graph/' + INV_ID);
         const data = await resp.json();
 
         if (!data.nodes.length) {
@@ -645,7 +645,7 @@ async function loadGraph() {
             .attr('fill', d => typeColors[d.type] || '#6b7280')
             .attr('stroke', '#2d3343').attr('stroke-width', 2)
             .style('cursor', 'pointer')
-            .on('click', (e, d) => { window.location.href = '/target/' + d.id + '/profile'; });
+            .on('click', (e, d) => { window.location.href = BASE + '/target/' + d.id + '/profile'; });
 
         node.append('text')
             .attr('dy', d => nodeRadius(d) + 14)
