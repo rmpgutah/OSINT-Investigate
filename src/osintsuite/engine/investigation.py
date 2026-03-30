@@ -126,6 +126,18 @@ from osintsuite.modules.trademark_patent import TrademarkPatentModule
 from osintsuite.modules.social_deep import SocialDeepModule
 from osintsuite.modules.website_content import WebsiteContentModule
 
+# v0.6 — Specialized Deep Dive
+from osintsuite.modules.domain_age import DomainAgeModule
+from osintsuite.modules.email_permutations import EmailPermutationsModule
+from osintsuite.modules.password_breach import PasswordBreachModule
+from osintsuite.modules.social_sentiment import SocialSentimentModule
+from osintsuite.modules.archive_search import ArchiveSearchModule
+from osintsuite.modules.job_posting import JobPostingModule
+from osintsuite.modules.gov_contracts import GovContractsModule
+from osintsuite.modules.domain_typosquat import DomainTyposquatModule
+from osintsuite.modules.phone_reputation import PhoneReputationModule
+from osintsuite.modules.favicon_hash import FaviconHashModule
+
 if TYPE_CHECKING:
     pass
 
@@ -269,6 +281,18 @@ class InvestigationEngine:
         self.modules["trademark_patent"] = TrademarkPatentModule(client, limiter)
         self.modules["social_deep"] = SocialDeepModule(client, limiter)
         self.modules["website_content"] = WebsiteContentModule(client, limiter)
+
+        # v0.6 — Specialized Deep Dive
+        self.modules["domain_age"] = DomainAgeModule(client, limiter)
+        self.modules["email_permutations"] = EmailPermutationsModule(client, limiter)
+        self.modules["password_breach"] = PasswordBreachModule(client, limiter)
+        self.modules["social_sentiment"] = SocialSentimentModule(client, limiter)
+        self.modules["archive_search"] = ArchiveSearchModule(client, limiter)
+        self.modules["job_posting"] = JobPostingModule(client, limiter)
+        self.modules["gov_contracts"] = GovContractsModule(client, limiter)
+        self.modules["domain_typosquat"] = DomainTyposquatModule(client, limiter)
+        self.modules["phone_reputation"] = PhoneReputationModule(client, limiter)
+        self.modules["favicon_hash"] = FaviconHashModule(client, limiter)
 
     def list_modules(self) -> dict[str, str]:
         """Return module names and descriptions."""
