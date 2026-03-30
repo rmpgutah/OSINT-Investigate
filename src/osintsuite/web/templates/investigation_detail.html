@@ -1,5 +1,16 @@
 {% extends "base.html" %}
 
+{% block head %}
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+#networkGraph { border-radius: var(--r); }
+#networkGraph .link { stroke-opacity: 0.6; }
+#networkGraph .link-exact { stroke: var(--green); }
+#networkGraph .link-fuzzy { stroke: var(--yellow); }
+#networkGraph text { fill: var(--text); font-size: 11px; pointer-events: none; }
+</style>
+{% endblock %}
+
 {% block title %}{{ investigation.case_number }} — OSINT Suite{% endblock %}
 
 {% block content %}
@@ -34,6 +45,7 @@
     <div style="display: flex; gap: 0.6rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
         <button class="btn btn-primary" onclick="document.getElementById('addTargetModal').style.display='flex'">+ Add Target</button>
         <button class="btn" onclick="runCorrelations()">Correlate Targets</button>
+        <button class="btn" onclick="toggleGraph()">Network Graph</button>
         <button class="btn" onclick="document.getElementById('reportModal').style.display='flex'">Generate Report</button>
         <button class="btn" onclick="toggleNotes()">Notes</button>
     </div>
@@ -52,6 +64,12 @@
     <div class="card" id="correlationsPanel" style="display: none; margin-bottom: 1.5rem;">
         <h3>Cross-Target Correlations</h3>
         <div id="correlationResults"></div>
+    </div>
+
+    <!-- Network Graph panel -->
+    <div class="card" id="graphPanel" style="display: none; margin-bottom: 1.5rem;">
+        <h3>Target Connection Graph</h3>
+        <div id="graphContainer" style="background: var(--bg); border-radius: var(--r); overflow: hidden;"></div>
     </div>
 
     <!-- Targets -->
@@ -455,6 +473,114 @@ async function generateReport() {
     } catch(e) { showToast('Network error', 'error'); }
     btn.disabled = false;
     btn.textContent = 'Generate';
+}
+
+// ── Network Graph (D3.js) ────────────────────────────────────────
+let graphLoaded = false;
+
+function toggleGraph() {
+    const panel = document.getElementById('graphPanel');
+    const visible = panel.style.display !== 'none';
+    panel.style.display = visible ? 'none' : 'block';
+    if (!visible && !graphLoaded) loadGraph();
+}
+
+async function loadGraph() {
+    const container = document.getElementById('graphContainer');
+    container.replaceChildren();
+    container.appendChild(el('p', {text: 'Loading graph...', style: 'color: var(--dim); padding: 2rem; text-align: center;'}));
+
+    try {
+        const resp = await fetch('/api/modules/graph/' + INV_ID);
+        const data = await resp.json();
+
+        if (!data.nodes.length) {
+            container.replaceChildren();
+            container.appendChild(el('p', {text: 'No targets to graph.', style: 'color: var(--muted); padding: 2rem; text-align: center;'}));
+            return;
+        }
+
+        container.replaceChildren();
+        const width = container.clientWidth || 800;
+        const height = 450;
+
+        const typeColors = {
+            person: '#3b82f6', domain: '#22c55e', email: '#f59e0b',
+            ip: '#ef4444', phone: '#a855f7', username: '#06b6d4', organization: '#f97316'
+        };
+
+        const svg = d3.select('#graphContainer').append('svg')
+            .attr('width', width).attr('height', height)
+            .attr('id', 'networkGraph');
+
+        // Arrow marker for links
+        svg.append('defs').append('marker')
+            .attr('id', 'arrowhead').attr('viewBox', '0 -5 10 10')
+            .attr('refX', 20).attr('refY', 0).attr('markerWidth', 6).attr('markerHeight', 6)
+            .attr('orient', 'auto')
+            .append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', '#6b7280');
+
+        const simulation = d3.forceSimulation(data.nodes)
+            .force('link', d3.forceLink(data.links).id(d => d.id).distance(120))
+            .force('charge', d3.forceManyBody().strength(-300))
+            .force('center', d3.forceCenter(width / 2, height / 2))
+            .force('collision', d3.forceCollide().radius(d => nodeRadius(d) + 10));
+
+        function nodeRadius(d) { return Math.max(8, Math.min(25, 6 + d.findings_count * 2)); }
+
+        const link = svg.append('g').selectAll('line')
+            .data(data.links).enter().append('line')
+            .attr('class', d => 'link link-' + d.match_type)
+            .attr('stroke-width', d => d.similarity > 90 ? 3 : 2);
+
+        const node = svg.append('g').selectAll('g')
+            .data(data.nodes).enter().append('g')
+            .call(d3.drag()
+                .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+                .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+                .on('end', (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+            );
+
+        node.append('circle')
+            .attr('r', nodeRadius)
+            .attr('fill', d => typeColors[d.type] || '#6b7280')
+            .attr('stroke', '#2d3343').attr('stroke-width', 2)
+            .style('cursor', 'pointer')
+            .on('click', (e, d) => { window.location.href = '/target/' + d.id + '/profile'; });
+
+        node.append('text')
+            .attr('dy', d => nodeRadius(d) + 14)
+            .attr('text-anchor', 'middle')
+            .text(d => d.label.length > 18 ? d.label.slice(0, 16) + '..' : d.label);
+
+        // Findings count inside node
+        node.append('text')
+            .attr('dy', 4).attr('text-anchor', 'middle')
+            .attr('fill', '#fff').attr('font-size', '10px').attr('font-weight', '700')
+            .text(d => d.findings_count || '');
+
+        simulation.on('tick', () => {
+            link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+            node.attr('transform', d => 'translate(' + d.x + ',' + d.y + ')');
+        });
+
+        // Legend
+        const legend = svg.append('g').attr('transform', 'translate(10, 10)');
+        let ly = 0;
+        Object.entries(typeColors).forEach(([type, color]) => {
+            legend.append('circle').attr('cx', 6).attr('cy', ly + 6).attr('r', 5).attr('fill', color);
+            legend.append('text').attr('x', 16).attr('y', ly + 10).text(type)
+                .attr('fill', '#9ca3b0').attr('font-size', '10px');
+            ly += 18;
+        });
+
+        graphLoaded = true;
+        showToast(data.nodes.length + ' targets, ' + data.links.length + ' connections');
+    } catch(e) {
+        container.replaceChildren();
+        container.appendChild(el('p', {text: 'Failed to load graph.', style: 'color: var(--red); padding: 2rem; text-align: center;'}));
+    }
 }
 
 // ── Init ─────────────────────────────────────────────────────────

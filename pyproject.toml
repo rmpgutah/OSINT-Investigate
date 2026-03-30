@@ -26,6 +26,7 @@ dependencies = [
     "thefuzz[speedup]>=0.22",
     "weasyprint>=62",
     "python-multipart>=0.0.9",
+    "duckduckgo-search>=6.0",
     "eval_type_backport>=0.2; python_version < '3.10'",
 ]
 

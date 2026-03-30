@@ -27,6 +27,13 @@ from osintsuite.modules.social_media import SocialMediaModule
 from osintsuite.modules.timeline_forensics import TimelineForensicsModule
 from osintsuite.modules.web_scraper import WebScraperModule
 
+# v0.2 modules
+from osintsuite.modules.shodan_intel import ShodanIntelModule
+from osintsuite.modules.email_breach import EmailBreachModule
+from osintsuite.modules.username_osint import UsernameOsintModule
+from osintsuite.modules.google_dork import GoogleDorkModule
+from osintsuite.modules.paste_search import PasteSearchModule
+
 if TYPE_CHECKING:
     pass
 
@@ -69,6 +76,15 @@ class InvestigationEngine:
             abuseipdb_api_key=self.settings.abuseipdb_api_key,
         )
         self.modules["timeline_forensics"] = TimelineForensicsModule(client, limiter)
+
+        # v0.2 — advanced OSINT modules
+        self.modules["shodan_intel"] = ShodanIntelModule(
+            client, limiter, shodan_api_key=self.settings.shodan_api_key
+        )
+        self.modules["email_breach"] = EmailBreachModule(client, limiter)
+        self.modules["username_osint"] = UsernameOsintModule(client, limiter)
+        self.modules["google_dork"] = GoogleDorkModule(client, limiter)
+        self.modules["paste_search"] = PasteSearchModule(client, limiter)
 
     def list_modules(self) -> dict[str, str]:
         """Return module names and descriptions."""

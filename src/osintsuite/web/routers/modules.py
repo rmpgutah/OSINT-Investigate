@@ -76,6 +76,45 @@ async def get_correlations(
     ]
 
 
+# ── Network Graph ─────────────────────────────────────────────────────
+
+@router.get("/graph/{investigation_id}")
+async def get_graph(
+    investigation_id: uuid.UUID,
+    repo: Repository = Depends(get_repo),
+):
+    """Return D3-ready graph data: nodes (targets) and links (correlations)."""
+    targets = await repo.list_targets(investigation_id)
+
+    # Build nodes — all targets, even uncorrelated ones
+    nodes = []
+    for t in targets:
+        findings = await repo.get_findings_by_target(t.id)
+        nodes.append({
+            "id": str(t.id),
+            "label": t.label,
+            "type": t.target_type,
+            "findings_count": len(findings),
+        })
+
+    # Build links from correlations
+    correlator = Correlator(repo)
+    correlations = await correlator.correlate_investigation(investigation_id)
+    links = [
+        {
+            "source": str(c.target_a_id),
+            "target": str(c.target_b_id),
+            "field": c.field,
+            "match_type": c.match_type,
+            "similarity": c.similarity,
+            "value": c.value_a if c.value_a == c.value_b else f"{c.value_a} \u2248 {c.value_b}",
+        }
+        for c in correlations
+    ]
+
+    return {"nodes": nodes, "links": links}
+
+
 # ── Notes ─────────────────────────────────────────────────────────────
 
 class NoteCreate(BaseModel):
