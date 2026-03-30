@@ -23,12 +23,47 @@
     .summary-stats { grid-template-columns: repeat(2, 1fr); }
     .chart-grid { grid-template-columns: 1fr; }
 }
+/* Key findings highlight cards */
+.key-findings { display: grid; grid-template-columns: 1fr; gap: 0.75rem; margin-bottom: 2rem; }
+.key-finding-card { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: var(--r); padding: 1rem 1.25rem; display: flex; align-items: flex-start; gap: 1rem; }
+.key-finding-card .kf-badge { flex-shrink: 0; }
+.key-finding-card .kf-body { flex: 1; min-width: 0; }
+.key-finding-card .kf-title { font-weight: 600; font-size: 0.92rem; margin-bottom: 0.25rem; }
+.key-finding-card .kf-snippet { color: var(--dim); font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.kf-conf-bar { height: 6px; border-radius: 3px; background: var(--bg); margin-top: 0.4rem; overflow: hidden; }
+.kf-conf-fill { height: 100%; border-radius: 3px; }
+
+/* Module coverage chart */
+.coverage-chart { margin-bottom: 2rem; }
+.cov-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
+.cov-label { width: 100px; font-size: 0.82rem; color: var(--dim); text-align: right; flex-shrink: 0; }
+.cov-bar-bg { flex: 1; height: 20px; background: var(--bg); border-radius: 10px; overflow: hidden; position: relative; }
+.cov-bar-fill { height: 100%; border-radius: 10px; transition: width 0.5s ease; }
+.cov-bar-text { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 0.7rem; color: var(--dim); font-weight: 600; }
+
+/* Share link button */
+.share-btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.9rem; border: 1px solid var(--border); border-radius: var(--r); background: var(--card); color: var(--dim); cursor: pointer; font-size: 0.82rem; font-family: inherit; transition: all 0.15s; }
+.share-btn:hover { border-color: var(--accent); color: var(--accent); }
+
 @media print {
-    .navbar, .sidebar, .footer, .fab, .btn, .toast, .cmd-palette-overlay { display: none !important; }
-    .main-content { margin-left: 0 !important; }
-    body { background: #fff !important; color: #000 !important; -webkit-print-color-adjust: exact; }
-    .card { border: 1px solid #ddd !important; break-inside: avoid; }
+    .navbar, .sidebar, .footer, .fab, .btn, .toast, .cmd-palette-overlay, .share-btn { display: none !important; }
+    .main-content { margin-left: 0 !important; padding: 0 !important; }
+    body { background: #fff !important; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .card, .chart-card, .summary-stat, .key-finding-card { border: 1px solid #ddd !important; break-inside: avoid; page-break-inside: avoid; }
     .stat-card { border: 1px solid #ddd !important; }
+    .data-table { break-inside: auto; }
+    .data-table thead { display: table-header-group; }
+    .data-table tr { page-break-inside: avoid; }
+    .risk-gauge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .risk-gauge-inner { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .chart-grid, .chart-card { break-inside: avoid; page-break-inside: avoid; }
+    canvas { max-height: 250px !important; }
+    .cov-bar-fill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .kf-conf-fill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .conf-heatmap-high, .conf-heatmap-med, .conf-heatmap-low { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .key-finding-card { border-left: 4px solid #3b82f6 !important; }
+    #summaryMap { break-before: page; }
+    .investigation-summary { max-width: 100%; }
 }
 </style>
 {% endblock %}
@@ -52,7 +87,10 @@
             <p class="subtitle">{{ investigation.case_number }} &mdash; {{ investigation.title }}</p>
         </div>
         <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem;">
-            <button class="btn" onclick="window.print()">Export PDF</button>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="share-btn" onclick="copyShareLink(this)">&#128279; Copy Link</button>
+                <button class="btn" onclick="window.print()">Export PDF</button>
+            </div>
             <span class="badge badge-{{ investigation.status }}" style="font-size: 0.85rem; padding: 0.3rem 0.9rem;">{{ investigation.status }}</span>
             {% if investigation.assigned_to %}
             <span style="color: var(--dim); font-size: 0.82rem;">Assigned to: {{ investigation.assigned_to }}</span>
@@ -64,6 +102,39 @@
     {% if executive_text %}
     <div class="card" style="border-left: 4px solid var(--accent); margin-bottom: 1.5rem;">
         <p style="color: var(--dim); font-size: 0.95rem; line-height: 1.7;">{{ executive_text }}</p>
+    </div>
+    {% endif %}
+
+    {# Key findings highlight — top 5 highest-confidence #}
+    {% if top_findings %}
+    <div class="section" style="margin-bottom: 1.5rem;">
+        <h2 style="margin-bottom: 0.75rem;">Key Findings</h2>
+        <div class="key-findings">
+            {% for f in top_findings %}
+            <div class="key-finding-card" style="border-left-color: {% if f.confidence > 70 %}#22c55e{% elif f.confidence > 40 %}#f59e0b{% else %}#ef4444{% endif %};">
+                <div class="kf-badge">
+                    <span class="badge badge-type" style="font-size: 0.7rem;">{{ f.module_name.replace('_', ' ') }}</span>
+                </div>
+                <div class="kf-body">
+                    <div class="kf-title">{{ f.title or f.finding_type or '\u2014' }}</div>
+                    <div class="kf-snippet">
+                        {% if f.data and f.data.keys()|list|length > 0 %}
+                            {% set first_key = f.data.keys()|list|first %}
+                            {{ first_key }}: {{ f.data[first_key]|string|truncate(80, True) }}
+                        {% elif f.content %}
+                            {{ f.content|truncate(80, True) }}
+                        {% else %}
+                            {{ f.source }} &mdash; {{ f.finding_type }}
+                        {% endif %}
+                    </div>
+                    <div class="kf-conf-bar">
+                        <div class="kf-conf-fill" style="width: {{ f.confidence or 0 }}%; background: {% if f.confidence > 70 %}#22c55e{% elif f.confidence > 40 %}#f59e0b{% else %}#ef4444{% endif %};"></div>
+                    </div>
+                    <span style="font-size: 0.72rem; color: var(--dim);">{{ f.confidence or 0 }}% confidence</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
     {% endif %}
 
@@ -110,19 +181,30 @@
         <canvas id="timelineChart" style="max-height: 250px;"></canvas>
     </div>
 
-    {# Target comparison table #}
+    {# Module coverage chart #}
+    <div class="card coverage-chart" style="margin-bottom: 2rem;">
+        <h3>Module Coverage by Category</h3>
+        <div id="coverageChart" style="padding: 0.75rem 0;">
+            <div style="color: var(--muted); font-size: 0.85rem; text-align: center; padding: 1rem;">Loading coverage data...</div>
+        </div>
+    </div>
+
+    {# Target comparison table (enhanced) #}
     <div class="section" style="margin-bottom: 2rem;">
         <h2 style="margin-bottom: 1rem;">Target Comparison</h2>
         <table class="data-table" id="targetComparisonTable">
             <thead>
                 <tr>
                     <th>Target</th>
-                    <th>Findings</th>
+                    <th>Type</th>
+                    <th>Total Findings</th>
+                    <th>Flagged</th>
+                    <th>Highest Confidence</th>
                     <th>Modules Run</th>
                 </tr>
             </thead>
             <tbody id="targetComparisonBody">
-                <tr><td colspan="3" style="color: var(--muted); text-align: center; padding: 1rem;">Loading...</td></tr>
+                <tr><td colspan="6" style="color: var(--muted); text-align: center; padding: 1rem;">Loading...</td></tr>
             </tbody>
         </table>
     </div>
@@ -309,17 +391,35 @@ function renderTargetComparison(targets) {
     if (!targets.length) {
         var row = el('tr');
         var td = el('td', {text: 'No targets yet.', style: 'color: var(--muted); text-align: center; padding: 1rem;'});
-        td.setAttribute('colspan', '3');
+        td.setAttribute('colspan', '6');
         row.appendChild(td);
         body.appendChild(row);
         return;
     }
 
+    // Sort by total findings descending
+    targets.sort(function(a, b) { return (b.findings_count || 0) - (a.findings_count || 0); });
+
     targets.forEach(function(t) {
         var row = el('tr');
-        row.appendChild(el('td', {text: t.target_label}));
-        row.appendChild(el('td', {text: String(t.findings_count), style: 'color: var(--dim);'}));
-        row.appendChild(el('td', {text: String(t.modules_run), style: 'color: var(--dim);'}));
+        row.appendChild(el('td', {text: t.target_label, style: 'font-weight: 600;'}));
+        row.appendChild(el('td', {text: t.target_type || '\u2014', style: 'color: var(--dim);'}));
+        row.appendChild(el('td', {text: String(t.findings_count || 0)}));
+
+        var flaggedCount = t.flagged_count || 0;
+        var flaggedTd = el('td');
+        if (flaggedCount > 0) {
+            flaggedTd.appendChild(el('span', {text: String(flaggedCount), style: 'color: var(--yellow); font-weight: 600;'}));
+        } else {
+            flaggedTd.appendChild(el('span', {text: '0', style: 'color: var(--dim);'}));
+        }
+        row.appendChild(flaggedTd);
+
+        var highConf = t.highest_confidence || 0;
+        var confColor = highConf > 70 ? 'var(--green)' : highConf > 40 ? 'var(--yellow)' : 'var(--red)';
+        row.appendChild(el('td', {text: highConf > 0 ? highConf + '%' : '\u2014', style: 'color: ' + confColor + '; font-weight: 600;'}));
+
+        row.appendChild(el('td', {text: String(t.modules_run || 0), style: 'color: var(--dim);'}));
         body.appendChild(row);
     });
 }
@@ -377,8 +477,127 @@ async function loadMapData() {
     }
 }
 
+// ── Module coverage chart ───────────────────────────────────────────
+const COVERAGE_CATEGORIES = {
+    Criminal: ['criminal_records', 'court_records', 'arrest_records', 'sex_offender', 'warrant_search', 'incarceration', 'criminal_history'],
+    Social: ['social_media', 'social_profiles', 'username_search', 'review_search', 'associates_network', 'dating_profiles', 'forum_search'],
+    Financial: ['financial_records', 'bankruptcy', 'property_records', 'business_records', 'corporate_filings', 'tax_liens'],
+    Digital: ['email_deep', 'github_intel', 'paste_search', 'username_enum', 'data_breach', 'dark_web', 'website_content'],
+    Location: ['geolocation', 'address_lookup', 'ip_geolocation', 'cell_tower', 'wifi_triangulation', 'satellite_imagery'],
+    Cyber: ['dns_recon', 'whois_lookup', 'tech_stack', 'ssl_certs', 'subdomain_enum', 'port_scan', 'hash_intel', 'phone_disposable', 'vulnerability_scan']
+};
+
+const COVERAGE_COLORS = {
+    Criminal: '#ef4444', Social: '#3b82f6', Financial: '#f59e0b',
+    Digital: '#a855f7', Location: '#06b6d4', Cyber: '#ec4899'
+};
+
+function classifyCoverageModule(moduleName) {
+    var name = moduleName.toLowerCase();
+    for (var cat in COVERAGE_CATEGORIES) {
+        if (COVERAGE_CATEGORIES[cat].some(function(m) { return name.indexOf(m) !== -1 || m.indexOf(name) !== -1; })) {
+            return cat;
+        }
+    }
+    if (name.indexOf('social') !== -1 || name.indexOf('profile') !== -1) return 'Social';
+    if (name.indexOf('email') !== -1 || name.indexOf('breach') !== -1 || name.indexOf('github') !== -1) return 'Digital';
+    if (name.indexOf('geo') !== -1 || name.indexOf('address') !== -1 || name.indexOf('location') !== -1) return 'Location';
+    if (name.indexOf('dns') !== -1 || name.indexOf('whois') !== -1 || name.indexOf('ssl') !== -1 || name.indexOf('hash') !== -1 || name.indexOf('phone') !== -1) return 'Cyber';
+    if (name.indexOf('criminal') !== -1 || name.indexOf('court') !== -1) return 'Criminal';
+    if (name.indexOf('financial') !== -1 || name.indexOf('property') !== -1) return 'Financial';
+    return 'Digital';
+}
+
+async function loadCoverageChart() {
+    var container = document.getElementById('coverageChart');
+    if (!container) return;
+
+    try {
+        // Get all available modules
+        var modResp = await fetch(BASE + '/api/modules/');
+        if (!modResp.ok) throw new Error('Failed');
+        var allModules = await modResp.json();
+
+        // Get the stats to know which modules have been run
+        var statsResp = await fetch(BASE + '/api/modules/stats/' + INV_ID);
+        if (!statsResp.ok) throw new Error('Failed');
+        var stats = await statsResp.json();
+        var runModules = stats.findings_by_module || {};
+
+        // Classify all modules by category
+        var catTotals = {};
+        var catRun = {};
+        for (var cat in COVERAGE_CATEGORIES) {
+            catTotals[cat] = 0;
+            catRun[cat] = 0;
+        }
+
+        allModules.forEach(function(mod) {
+            var cat = classifyCoverageModule(mod.name);
+            if (catTotals[cat] !== undefined) {
+                catTotals[cat]++;
+                if (runModules[mod.name] !== undefined) {
+                    catRun[cat]++;
+                }
+            }
+        });
+
+        container.replaceChildren();
+
+        Object.keys(COVERAGE_CATEGORIES).forEach(function(cat) {
+            var total = catTotals[cat] || 0;
+            var run = catRun[cat] || 0;
+            var pct = total > 0 ? Math.round((run / total) * 100) : 0;
+
+            var rowDiv = document.createElement('div');
+            rowDiv.className = 'cov-row';
+
+            var label = el('div', {class: 'cov-label', text: cat});
+            rowDiv.appendChild(label);
+
+            var barBg = document.createElement('div');
+            barBg.className = 'cov-bar-bg';
+
+            var barFill = document.createElement('div');
+            barFill.className = 'cov-bar-fill';
+            barFill.style.width = pct + '%';
+            barFill.style.background = COVERAGE_COLORS[cat] || '#3b82f6';
+            barBg.appendChild(barFill);
+
+            var barText = el('div', {class: 'cov-bar-text', text: run + '/' + total + ' (' + pct + '%)'});
+            barBg.appendChild(barText);
+
+            rowDiv.appendChild(barBg);
+            container.appendChild(rowDiv);
+        });
+    } catch(e) {
+        container.replaceChildren();
+        container.appendChild(el('div', {text: 'Failed to load coverage data.', style: 'color: var(--muted); font-size: 0.85rem; text-align: center; padding: 1rem;'}));
+    }
+}
+
+// ── Share summary link ─────────────────────────────────────────────
+function copyShareLink(btn) {
+    var url = window.location.href;
+    navigator.clipboard.writeText(url).then(function() {
+        showToast('Summary URL copied to clipboard');
+        var orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = orig; }, 1500);
+    }).catch(function() {
+        var ta = document.createElement('textarea');
+        ta.value = url;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast('Summary URL copied to clipboard');
+    });
+}
+
 // ── Init ─────────────────────────────────────────────────────────────
 loadSummaryData();
 loadMapData();
+loadCoverageChart();
 </script>
 {% endblock %}

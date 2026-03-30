@@ -64,6 +64,55 @@ tr.reviewed { opacity: 0.6; }
 /* Confidence gauge in slideout */
 .conf-gauge { width: 100%; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; margin-top: 0.3rem; }
 .conf-gauge-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+
+/* Finding count by category */
+.category-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+.cat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 0.75rem 1rem; text-align: center; border-top: 3px solid var(--border); }
+.cat-card .cat-count { font-size: 1.5rem; font-weight: 800; line-height: 1.2; }
+.cat-card .cat-label { color: var(--dim); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.15rem; }
+.cat-criminal { border-top-color: #ef4444; }
+.cat-criminal .cat-count { color: #ef4444; }
+.cat-social { border-top-color: #3b82f6; }
+.cat-social .cat-count { color: #3b82f6; }
+.cat-financial { border-top-color: #f59e0b; }
+.cat-financial .cat-count { color: #f59e0b; }
+.cat-digital { border-top-color: #a855f7; }
+.cat-digital .cat-count { color: #a855f7; }
+.cat-location { border-top-color: #06b6d4; }
+.cat-location .cat-count { color: #06b6d4; }
+.cat-cyber { border-top-color: #ec4899; }
+.cat-cyber .cat-count { color: #ec4899; }
+@media (max-width: 768px) { .category-stats { grid-template-columns: repeat(3, 1fr); } }
+
+/* Finding data key-value table in slideout */
+.data-kv-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.data-kv-table td { padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.data-kv-table td:first-child { color: var(--muted); font-weight: 500; white-space: nowrap; width: 35%; }
+.data-kv-table td:last-child { color: var(--text); word-break: break-word; }
+.data-kv-table a { color: var(--accent); text-decoration: underline; }
+
+/* Copy JSON button */
+.copy-json-btn { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.7rem; border: 1px solid var(--border); border-radius: var(--r); background: var(--bg); color: var(--dim); cursor: pointer; font-size: 0.78rem; font-family: inherit; transition: all 0.15s; }
+.copy-json-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Finding timeline mini-chart */
+.timeline-mini { display: flex; align-items: flex-end; gap: 3px; height: 48px; padding: 0.5rem 0; margin-bottom: 0.75rem; }
+.timeline-mini .tbar { flex: 1; background: var(--accent); border-radius: 2px 2px 0 0; min-height: 2px; transition: height 0.3s; position: relative; }
+.timeline-mini .tbar:hover { opacity: 0.8; }
+.timeline-mini .tbar-label { position: absolute; bottom: -16px; left: 50%; transform: translateX(-50%); font-size: 0.6rem; color: var(--muted); white-space: nowrap; }
+.timeline-mini-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; }
+.timeline-mini-header span { font-size: 0.75rem; color: var(--muted); }
+
+/* Module status grid */
+.module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.5rem; }
+.mod-tile { padding: 0.6rem 0.75rem; border-radius: var(--r); border: 1px solid var(--border); font-size: 0.78rem; text-align: center; cursor: default; transition: all 0.15s; }
+.mod-tile .mod-tile-name { font-weight: 600; margin-bottom: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mod-tile .mod-tile-info { font-size: 0.68rem; color: var(--dim); }
+.mod-tile-green { background: rgba(34,197,94,0.1); border-color: rgba(34,197,94,0.3); color: #22c55e; }
+.mod-tile-yellow { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.3); color: #f59e0b; }
+.mod-tile-red { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: #ef4444; }
+.mod-tile-gray { background: var(--bg); border-color: var(--border); color: var(--muted); cursor: pointer; }
+.mod-tile-gray:hover { border-color: var(--accent); color: var(--accent); }
 </style>
 {% endblock %}
 
@@ -164,6 +213,24 @@ tr.reviewed { opacity: 0.6; }
         </div>
     </div>
 
+    <!-- Finding count by category -->
+    <div class="category-stats" id="categoryStats">
+        <div class="cat-card cat-criminal"><div class="cat-count" id="catCriminal">0</div><div class="cat-label">Criminal</div></div>
+        <div class="cat-card cat-social"><div class="cat-count" id="catSocial">0</div><div class="cat-label">Social</div></div>
+        <div class="cat-card cat-financial"><div class="cat-count" id="catFinancial">0</div><div class="cat-label">Financial</div></div>
+        <div class="cat-card cat-digital"><div class="cat-count" id="catDigital">0</div><div class="cat-label">Digital</div></div>
+        <div class="cat-card cat-location"><div class="cat-count" id="catLocation">0</div><div class="cat-label">Location</div></div>
+        <div class="cat-card cat-cyber"><div class="cat-count" id="catCyber">0</div><div class="cat-label">Cyber</div></div>
+    </div>
+
+    <!-- Module Status Grid -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <h3>Module Status</h3>
+        <div class="module-grid" id="moduleStatusGrid">
+            <div style="color: var(--muted); font-size: 0.85rem; grid-column: 1/-1; text-align: center; padding: 0.5rem;">Loading modules...</div>
+        </div>
+    </div>
+
     <!-- Module Run History -->
     {% if module_runs %}
     <div class="card" style="margin-bottom: 1.5rem;">
@@ -226,6 +293,15 @@ tr.reviewed { opacity: 0.6; }
             </div>
             <div style="flex: 1;"></div>
             <span id="filterCount" style="color: var(--muted); font-size: 0.78rem;"></span>
+        </div>
+
+        <!-- Finding timeline mini-chart (last 7 days) -->
+        <div class="card" style="margin-bottom: 1rem; padding: 0.75rem 1rem;">
+            <div class="timeline-mini-header">
+                <strong style="font-size: 0.82rem; color: var(--dim);">Findings — Last 7 Days</strong>
+                <span id="timelineMiniTotal"></span>
+            </div>
+            <div class="timeline-mini" id="timelineMini"></div>
         </div>
 
         <!-- All findings table -->
@@ -622,9 +698,54 @@ async function loadSlideoutContent(findingId) {
 
         if (f.data && Object.keys(f.data).length > 0) {
             const ds = el('div', {class: 'slideout-section'});
-            ds.appendChild(el('strong', {text: 'Data'}));
-            const pre = el('pre', {text: JSON.stringify(f.data, null, 2), style: 'background: var(--bg); padding: 0.75rem; border-radius: var(--r); font-size: 0.8rem; overflow-x: auto; max-height: 300px; overflow-y: auto; color: var(--dim);'});
-            ds.appendChild(pre);
+            const dataHeader = el('div', {style: 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;'});
+            dataHeader.appendChild(el('strong', {text: 'Data'}));
+            const copyBtn = el('button', {class: 'copy-json-btn', text: 'Copy JSON'});
+            copyBtn.onclick = function() {
+                var jsonStr = JSON.stringify(f.data, null, 2);
+                navigator.clipboard.writeText(jsonStr).then(function() {
+                    showToast('JSON copied to clipboard');
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(function() { copyBtn.textContent = 'Copy JSON'; }, 1500);
+                }).catch(function() {
+                    // Fallback
+                    var ta = document.createElement('textarea');
+                    ta.value = jsonStr;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    showToast('JSON copied to clipboard');
+                });
+            };
+            dataHeader.appendChild(copyBtn);
+            ds.appendChild(dataHeader);
+
+            // Render as key-value table
+            var table = document.createElement('table');
+            table.className = 'data-kv-table';
+            Object.keys(f.data).forEach(function(key) {
+                var val = f.data[key];
+                var tr = document.createElement('tr');
+                var tdKey = document.createElement('td');
+                tdKey.textContent = key;
+                tr.appendChild(tdKey);
+                var tdVal = document.createElement('td');
+                if (typeof val === 'string' && (val.startsWith('http://') || val.startsWith('https://'))) {
+                    var link = el('a', {href: val, text: val});
+                    link.setAttribute('target', '_blank');
+                    link.setAttribute('rel', 'noopener');
+                    tdVal.appendChild(link);
+                } else if (typeof val === 'object' && val !== null) {
+                    var pre = el('pre', {text: JSON.stringify(val, null, 2), style: 'margin: 0; font-size: 0.78rem; color: var(--dim); white-space: pre-wrap;'});
+                    tdVal.appendChild(pre);
+                } else {
+                    tdVal.textContent = val === null || val === undefined ? '\u2014' : String(val);
+                }
+                tr.appendChild(tdVal);
+                table.appendChild(tr);
+            });
+            ds.appendChild(table);
             body.appendChild(ds);
         }
 
@@ -655,7 +776,218 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+// ── Category mapping ────────────────────────────────────────────
+const MODULE_CATEGORIES = {
+    criminal: ['criminal_records', 'court_records', 'arrest_records', 'sex_offender', 'warrant_search', 'incarceration', 'criminal_history'],
+    social: ['social_media', 'social_profiles', 'username_search', 'review_search', 'associates_network', 'dating_profiles', 'forum_search'],
+    financial: ['financial_records', 'bankruptcy', 'property_records', 'business_records', 'corporate_filings', 'tax_liens'],
+    digital: ['email_deep', 'github_intel', 'paste_search', 'username_enum', 'data_breach', 'dark_web', 'website_content'],
+    location: ['geolocation', 'address_lookup', 'ip_geolocation', 'cell_tower', 'wifi_triangulation', 'property_records', 'satellite_imagery'],
+    cyber: ['dns_recon', 'whois_lookup', 'tech_stack', 'ssl_certs', 'subdomain_enum', 'port_scan', 'hash_intel', 'phone_disposable', 'vulnerability_scan']
+};
+
+function classifyModule(moduleName) {
+    var name = moduleName.toLowerCase();
+    for (var cat in MODULE_CATEGORIES) {
+        if (MODULE_CATEGORIES[cat].some(function(m) { return name.indexOf(m) !== -1 || m.indexOf(name) !== -1; })) {
+            return cat;
+        }
+    }
+    if (name.indexOf('social') !== -1 || name.indexOf('profile') !== -1 || name.indexOf('username') !== -1) return 'social';
+    if (name.indexOf('email') !== -1 || name.indexOf('breach') !== -1 || name.indexOf('paste') !== -1 || name.indexOf('github') !== -1) return 'digital';
+    if (name.indexOf('geo') !== -1 || name.indexOf('address') !== -1 || name.indexOf('location') !== -1 || name.indexOf('ip_') !== -1) return 'location';
+    if (name.indexOf('dns') !== -1 || name.indexOf('whois') !== -1 || name.indexOf('ssl') !== -1 || name.indexOf('port') !== -1 || name.indexOf('hash') !== -1 || name.indexOf('phone') !== -1 || name.indexOf('tech') !== -1) return 'cyber';
+    if (name.indexOf('criminal') !== -1 || name.indexOf('court') !== -1 || name.indexOf('arrest') !== -1 || name.indexOf('warrant') !== -1) return 'criminal';
+    if (name.indexOf('financial') !== -1 || name.indexOf('property') !== -1 || name.indexOf('business') !== -1 || name.indexOf('bankrupt') !== -1) return 'financial';
+    return 'digital';
+}
+
+// ── Populate category stat cards ────────────────────────────────
+function populateCategoryStats() {
+    var counts = {criminal: 0, social: 0, financial: 0, digital: 0, location: 0, cyber: 0};
+    document.querySelectorAll('#findingsTable tbody tr.finding-row').forEach(function(row) {
+        var mod = row.dataset.module || '';
+        var cat = classifyModule(mod);
+        if (counts[cat] !== undefined) counts[cat]++;
+    });
+    document.getElementById('catCriminal').textContent = counts.criminal;
+    document.getElementById('catSocial').textContent = counts.social;
+    document.getElementById('catFinancial').textContent = counts.financial;
+    document.getElementById('catDigital').textContent = counts.digital;
+    document.getElementById('catLocation').textContent = counts.location;
+    document.getElementById('catCyber').textContent = counts.cyber;
+}
+
+// ── Timeline mini-chart (last 7 days) ──────────────────────────
+function buildTimelineMini() {
+    var container = document.getElementById('timelineMini');
+    var totalLabel = document.getElementById('timelineMiniTotal');
+    if (!container) return;
+
+    var days = [];
+    var now = new Date();
+    for (var i = 6; i >= 0; i--) {
+        var d = new Date(now);
+        d.setDate(d.getDate() - i);
+        days.push({
+            key: d.toISOString().slice(0, 10),
+            label: (d.getMonth() + 1) + '/' + d.getDate(),
+            count: 0
+        });
+    }
+
+    document.querySelectorAll('#findingsTable tbody tr.finding-row').forEach(function(row) {
+        var dateStr = row.dataset.date || '';
+        var parts = dateStr.split(' ')[0];
+        if (!parts) return;
+        var mp = parts.split('/');
+        if (mp.length !== 2) return;
+        var month = parseInt(mp[0]);
+        var day = parseInt(mp[1]);
+        var year = now.getFullYear();
+        var rowDate = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        for (var j = 0; j < days.length; j++) {
+            if (days[j].key === rowDate) { days[j].count++; break; }
+        }
+    });
+
+    var maxCount = Math.max.apply(null, days.map(function(d) { return d.count; }));
+    if (maxCount === 0) maxCount = 1;
+    var total = days.reduce(function(s, d) { return s + d.count; }, 0);
+    if (totalLabel) totalLabel.textContent = total + ' findings';
+
+    container.replaceChildren();
+    days.forEach(function(d) {
+        var pct = (d.count / maxCount) * 100;
+        var bar = document.createElement('div');
+        bar.className = 'tbar';
+        bar.style.height = Math.max(2, pct) + '%';
+        bar.title = d.label + ': ' + d.count + ' findings';
+        var lbl = document.createElement('div');
+        lbl.className = 'tbar-label';
+        lbl.textContent = d.label;
+        bar.appendChild(lbl);
+        container.appendChild(bar);
+    });
+}
+
+// ── Module status grid ─────────────────────────────────────────
+async function loadModuleStatusGrid() {
+    var grid = document.getElementById('moduleStatusGrid');
+    if (!grid) return;
+
+    try {
+        var resp = await fetch(BASE + '/api/modules/for-target/' + TARGET_ID);
+        if (!resp.ok) throw new Error('Failed');
+        var data = await resp.json();
+        var applicableModules = data.modules || [];
+
+        var runMap = {};
+        document.querySelectorAll('.run-history-row').forEach(function(row) {
+            var nameEl = row.querySelector('span:first-child');
+            var statusEl = row.querySelector('.run-status');
+            var countEl = row.children[2];
+            if (nameEl && statusEl) {
+                var modName = nameEl.textContent.trim().toLowerCase().replace(/\s+/g, '_');
+                var status = statusEl.textContent.trim();
+                var countText = countEl ? countEl.textContent.trim() : '0';
+                var count = parseInt(countText) || 0;
+                runMap[modName] = {status: status, count: count};
+            }
+        });
+
+        var modulesWithFindings = {};
+        document.querySelectorAll('#findingsTable tbody tr.finding-row').forEach(function(row) {
+            var mod = row.dataset.module;
+            if (mod) modulesWithFindings[mod] = (modulesWithFindings[mod] || 0) + 1;
+        });
+
+        grid.replaceChildren();
+
+        if (applicableModules.length === 0) {
+            var emptyMsg = el('div', {text: 'No applicable modules for this target type.', style: 'color: var(--muted); font-size: 0.85rem; grid-column: 1/-1; text-align: center; padding: 0.5rem;'});
+            grid.appendChild(emptyMsg);
+            return;
+        }
+
+        applicableModules.forEach(function(mod) {
+            var tile = document.createElement('div');
+            tile.className = 'mod-tile';
+            var nameDiv = document.createElement('div');
+            nameDiv.className = 'mod-tile-name';
+            nameDiv.textContent = mod.name.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+            tile.appendChild(nameDiv);
+
+            var infoDiv = document.createElement('div');
+            infoDiv.className = 'mod-tile-info';
+
+            var findingsCount = modulesWithFindings[mod.name] || 0;
+            var runInfo = runMap[mod.name];
+
+            if (runInfo && runInfo.status === 'failed') {
+                tile.classList.add('mod-tile-red');
+                infoDiv.textContent = 'Failed';
+            } else if (findingsCount > 0 || (runInfo && runInfo.status === 'completed' && runInfo.count > 0)) {
+                tile.classList.add('mod-tile-green');
+                infoDiv.textContent = (findingsCount || runInfo.count) + ' findings';
+            } else if (runInfo && runInfo.status === 'completed') {
+                tile.classList.add('mod-tile-yellow');
+                infoDiv.textContent = '0 findings';
+            } else {
+                tile.classList.add('mod-tile-gray');
+                infoDiv.textContent = 'Not run';
+                tile.title = 'Click to run ' + mod.name.replace(/_/g, ' ');
+                tile.onclick = function() { runSingleModule(mod.name, tile); };
+            }
+
+            tile.appendChild(infoDiv);
+            grid.appendChild(tile);
+        });
+    } catch(e) {
+        grid.replaceChildren();
+        var errMsg = el('div', {text: 'Failed to load module status.', style: 'color: var(--muted); font-size: 0.85rem; grid-column: 1/-1; text-align: center; padding: 0.5rem;'});
+        grid.appendChild(errMsg);
+    }
+}
+
+async function runSingleModule(moduleName, tile) {
+    tile.onclick = null;
+    tile.style.opacity = '0.6';
+    tile.querySelector('.mod-tile-info').textContent = 'Running...';
+    tile.classList.remove('mod-tile-gray');
+    tile.classList.add('mod-tile-yellow');
+
+    try {
+        var resp = await fetch(BASE + '/api/targets/' + TARGET_ID + '/run', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({module_name: moduleName})
+        });
+        if (resp.ok) {
+            var result = await resp.json();
+            var count = result.findings_count || 0;
+            showToast(moduleName.replace(/_/g, ' ') + ': ' + count + ' findings');
+            setTimeout(function() { window.location.reload(); }, 1200);
+        } else {
+            tile.classList.remove('mod-tile-yellow');
+            tile.classList.add('mod-tile-red');
+            tile.querySelector('.mod-tile-info').textContent = 'Failed';
+            tile.style.opacity = '1';
+            showToast('Module run failed', 'error');
+        }
+    } catch(e) {
+        tile.classList.remove('mod-tile-yellow');
+        tile.classList.add('mod-tile-red');
+        tile.querySelector('.mod-tile-info').textContent = 'Error';
+        tile.style.opacity = '1';
+        showToast('Network error', 'error');
+    }
+}
+
 // Init
+populateCategoryStats();
+buildTimelineMini();
+loadModuleStatusGrid();
 applyFilters();
 </script>
 {% endblock %}

@@ -406,6 +406,47 @@
         .topbar { padding: 0.6rem 1rem; }
         .notif-dropdown { right: -2rem; width: 300px; }
     }
+
+    /* ── 1. Smooth page transitions ───────────────────────────────── */
+    .page-enter { animation: fadeSlideUp 0.4s ease-out; }
+
+    /* ── 2. Custom scrollbar styling ──────────────────────────────── */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+    /* ── 3. Loading overlay ───────────────────────────────────────── */
+    .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 500; }
+    .loading-spinner { width: 40px; height: 40px; border: 4px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── 4. Confirmation dialog ───────────────────────────────────── */
+    .confirm-dialog { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 400; backdrop-filter: blur(4px); }
+    .confirm-dialog-box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; width: 90%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+    .confirm-dialog-box p { font-size: 1rem; margin-bottom: 1.5rem; color: var(--text); line-height: 1.5; }
+    .confirm-dialog-actions { display: flex; justify-content: flex-end; gap: 0.6rem; }
+
+    /* ── 6. Status indicator dot ──────────────────────────────────── */
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 0.4rem; vertical-align: middle; }
+    .status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.offline { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+    /* ── 7. Module count badge ────────────────────────────────────── */
+    .module-count-badge { display: inline-block; padding: 0.2rem 0.7rem; background: var(--bg); border: 1px solid var(--border); border-radius: 20px; font-size: 0.75rem; color: var(--dim); font-weight: 600; margin: 0.5rem 1.25rem; }
+
+    /* ── 8. Better card hover effects ─────────────────────────────── */
+    .card { transition: all 0.2s; }
+    .card:hover { border-color: var(--accent); box-shadow: 0 4px 20px rgba(59,130,246,0.08); }
+
+    /* ── 9. Tooltip component ─────────────────────────────────────── */
+    .tooltip { position: relative; }
+    .tooltip::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.7rem; font-size: 0.78rem; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.15s; z-index: 100; }
+    .tooltip:hover::after { opacity: 1; }
+
+    /* ── 10. Progress bar component ───────────────────────────────── */
+    .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s ease; }
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -414,7 +455,7 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <a href="{{ request.scope.get('root_path', '') }}/">OSINT Suite</a>
+            <a href="{{ request.scope.get('root_path', '') }}/">OSINT Suite</a><span class="status-dot" id="apiStatusDot" title="API status"></span>
         </div>
         <nav class="sidebar-nav">
             <div class="nav-section">Navigation</div>
@@ -429,6 +470,7 @@
             <div class="nav-section" id="sidebarInvHeader" style="display:none;">Investigations</div>
             <div id="sidebarInvList"></div>
         </nav>
+        <div id="moduleCountBadge" class="module-count-badge" style="display:none;"></div>
         <div class="sidebar-footer">
             <button class="theme-toggle" id="themeToggle" title="Toggle light/dark theme" onclick="toggleTheme()" style="width:100%;justify-content:center;">
                 <span id="themeIcon">&#9788;</span> <span style="font-size:0.82rem;">Toggle Theme</span>
@@ -475,6 +517,11 @@
         <footer class="footer">
             <p>OSINT Investigation Suite v0.1.0</p>
         </footer>
+    </div>
+
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display:none;">
+        <div class="loading-spinner"></div>
     </div>
 
     <!-- Toast container (stacked) -->
@@ -905,6 +952,75 @@
             var d = document.getElementById('nav-dashboard');
             if (d) d.classList.add('active');
         }
+    })();
+
+    // ── 1. Smooth page transitions ──────────────────────────────────
+    (function() {
+        var c = document.querySelector('.container');
+        if (c) c.classList.add('page-enter');
+    })();
+
+    // ── 3. Loading overlay helpers ──────────────────────────────────
+    function showLoading() {
+        var ov = document.getElementById('loadingOverlay');
+        if (ov) ov.style.display = 'flex';
+    }
+    function hideLoading() {
+        var ov = document.getElementById('loadingOverlay');
+        if (ov) ov.style.display = 'none';
+    }
+
+    // ── 4. Confirmation dialog ──────────────────────────────────────
+    function confirmAction(message, onConfirm) {
+        var overlay = el('div', {class: 'confirm-dialog'});
+        var box = el('div', {class: 'confirm-dialog-box'});
+        box.appendChild(el('p', {text: message}));
+        var actions = el('div', {class: 'confirm-dialog-actions'});
+        var cancelBtn = el('button', {class: 'btn', text: 'Cancel'});
+        var confirmBtn = el('button', {class: 'btn btn-primary', text: 'Confirm'});
+        actions.appendChild(cancelBtn);
+        actions.appendChild(confirmBtn);
+        box.appendChild(actions);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        function close() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+        cancelBtn.addEventListener('click', close);
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) close(); });
+        confirmBtn.addEventListener('click', function() { close(); if (onConfirm) onConfirm(); });
+    }
+
+    // ── 5. Copy-to-clipboard utility ────────────────────────────────
+    function copyToClipboard(text, label) {
+        navigator.clipboard.writeText(text).then(function() {
+            showToast('Copied ' + (label || 'text'), 'success');
+        }).catch(function() {
+            showToast('Failed to copy', 'error');
+        });
+    }
+
+    // ── 6. API status indicator ─────────────────────────────────────
+    (function() {
+        var dot = document.getElementById('apiStatusDot');
+        if (!dot) return;
+        fetch(BASE + '/api/investigations/').then(function(r) {
+            dot.classList.add(r.ok ? 'online' : 'offline');
+        }).catch(function() {
+            dot.classList.add('offline');
+        });
+    })();
+
+    // ── 7. Module count badge ───────────────────────────────────────
+    (function() {
+        var badge = document.getElementById('moduleCountBadge');
+        if (!badge) return;
+        fetch(BASE + '/api/modules/').then(function(r) { return r.json(); }).then(function(data) {
+            var count = Array.isArray(data) ? data.length : 0;
+            if (count > 0) {
+                badge.textContent = count + ' Module' + (count !== 1 ? 's' : '');
+                badge.style.display = '';
+            }
+        }).catch(function() {});
     })();
     </script>
     {% block scripts %}{% endblock %}

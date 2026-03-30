@@ -129,6 +129,13 @@ async def investigation_summary(
     flagged_findings_chain.sort(key=lambda x: x["confidence"], reverse=True)
     flagged_findings_chain = flagged_findings_chain[:15]
 
+    # Top 5 highest-confidence findings for key findings highlight
+    top_findings = sorted(
+        [f for f in all_findings if (f.confidence or 0) > 0],
+        key=lambda f: f.confidence or 0,
+        reverse=True,
+    )[:5]
+
     return templates.TemplateResponse(
         request,
         "investigation_summary.html",
@@ -142,6 +149,7 @@ async def investigation_summary(
             "executive_text": executive_text,
             "risk_score": risk_score,
             "flagged_findings_chain": flagged_findings_chain,
+            "top_findings": top_findings,
         },
     )
 

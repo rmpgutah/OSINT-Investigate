@@ -45,6 +45,15 @@
         </div>
     </div>
 
+    <!-- Quick Stats Bar -->
+    <div class="quick-stats-bar" id="quickStatsBar" style="display:flex;align-items:center;gap:1.5rem;padding:0.6rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:var(--r);margin-bottom:1.5rem;font-size:0.85rem;color:var(--dim);flex-wrap:wrap;">
+        <span id="qsModules">-- modules available</span>
+        <span style="color:var(--border);">|</span>
+        <span id="qsLastActivity">Last activity: --</span>
+        <span style="color:var(--border);">|</span>
+        <span id="qsTotalFindings">-- total findings across all cases</span>
+    </div>
+
     <!-- Activity Timeline -->
     <div class="section" id="activitySection" style="display:none;">
         <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:0.75rem;">Recent Activity</h2>
@@ -63,6 +72,17 @@
             <button class="btn btn-primary" onclick="document.getElementById('newCaseModal').style.display='flex'">
                 + New Case
             </button>
+        </div>
+
+        <!-- Search & Filter Bar -->
+        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap;">
+            <input type="text" id="caseSearchInput" placeholder="Search cases..." style="flex:1;min-width:180px;padding:0.5rem 0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-size:0.88rem;outline:none;" oninput="filterTable()">
+            <div class="status-filter-pills" style="display:flex;gap:0.35rem;">
+                <button class="btn btn-sm filter-pill active" data-status="all" onclick="setStatusFilter('all', this)">All</button>
+                <button class="btn btn-sm filter-pill" data-status="open" onclick="setStatusFilter('open', this)" style="border-left:3px solid var(--green);">Open</button>
+                <button class="btn btn-sm filter-pill" data-status="active" onclick="setStatusFilter('active', this)" style="border-left:3px solid var(--yellow);">Active</button>
+                <button class="btn btn-sm filter-pill" data-status="closed" onclick="setStatusFilter('closed', this)" style="border-left:3px solid var(--muted);">Closed</button>
+            </div>
         </div>
 
         <!-- Kanban View (hidden by default) -->
@@ -105,7 +125,7 @@
             </thead>
             <tbody>
                 {% for item in investigations %}
-                <tr id="row-{{ item.inv.id }}">
+                <tr id="row-{{ item.inv.id }}" class="clickable-row" data-href="{{ request.scope.get('root_path', '') }}/investigation/{{ item.inv.case_number }}" data-status="{{ item.inv.status }}" style="cursor:pointer;" onclick="if(!event.target.closest('a,button')){window.location.href=this.dataset.href;}">
                     <td><a href="{{ request.scope.get('root_path', '') }}/investigation/{{ item.inv.case_number }}"><strong>{{ item.inv.case_number }}</strong></a></td>
                     <td>{{ item.inv.title }}</td>
                     <td><span class="badge badge-{{ item.inv.status }}">{{ item.inv.status }}</span></td>
@@ -116,7 +136,7 @@
                     <td style="display: flex; gap: 0.4rem;">
                         <a href="{{ request.scope.get('root_path', '') }}/investigation/{{ item.inv.case_number }}" class="btn btn-sm">View</a>
                         <a href="{{ request.scope.get('root_path', '') }}/investigation/{{ item.inv.case_number }}/summary" class="btn btn-sm">Summary</a>
-                        <button class="btn btn-sm btn-danger" onclick="deleteInvestigation('{{ item.inv.id }}', '{{ item.inv.case_number }}')">Del</button>
+                        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteInvestigation('{{ item.inv.id }}', '{{ item.inv.case_number }}')">Del</button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -125,10 +145,18 @@
         </div>
         {% else %}
         <div id="tableView">
-        <div class="empty-state">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem; opacity: 0.4;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            <p>No investigations yet.</p>
-            <p style="font-size: 0.88rem; margin-top: 0.5rem;">Click <strong>+ New Case</strong> to start your first investigation.</p>
+        <div class="empty-state" style="padding:3rem 2rem;text-align:center;">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" style="margin-bottom:1.25rem;opacity:0.7;">
+                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                <path d="M11 8v6"/><path d="M8 11h6"/>
+            </svg>
+            <h2 style="font-size:1.3rem;font-weight:700;margin-bottom:0.5rem;color:var(--text);">Start your first investigation</h2>
+            <p style="font-size:0.95rem;color:var(--dim);max-width:420px;margin:0 auto 1.5rem;">
+                Create a case to begin tracking targets, running OSINT modules, and collecting findings across 85+ intelligence sources.
+            </p>
+            <button class="btn btn-primary" style="padding:0.7rem 2rem;font-size:1rem;" onclick="document.getElementById('newCaseModal').style.display='flex'">
+                + Create Case
+            </button>
         </div>
         </div>
         {% endif %}
@@ -184,7 +212,83 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     // Make the investigations table sortable
     makeTableSortable('invTable');
+    // Load quick stats
+    loadQuickStats();
 });
+
+// ── Relative time helper ────────────────────────────────────────────
+function relativeTime(dateStr) {
+    var now = new Date();
+    var d = new Date(dateStr);
+    var diff = Math.floor((now - d) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+    return d.toLocaleDateString();
+}
+
+// ── Quick Stats Bar ─────────────────────────────────────────────────
+function loadQuickStats() {
+    // Fetch module count
+    fetch(BASE + '/api/modules/').then(function(r) { return r.json(); }).then(function(data) {
+        var count = Array.isArray(data) ? data.length : (data.modules ? data.modules.length : 0);
+        document.getElementById('qsModules').textContent = count + ' modules available';
+    }).catch(function() {
+        document.getElementById('qsModules').textContent = '85 modules available';
+    });
+
+    // Fetch last activity time
+    fetch(BASE + '/api/modules/activity?limit=1').then(function(r) { return r.json(); }).then(function(items) {
+        if (items && items.length && items[0].relative_time) {
+            document.getElementById('qsLastActivity').textContent = 'Last activity: ' + items[0].relative_time;
+        } else {
+            document.getElementById('qsLastActivity').textContent = 'Last activity: none';
+        }
+    }).catch(function() {
+        document.getElementById('qsLastActivity').textContent = 'Last activity: --';
+    });
+
+    // Fetch total findings across all cases
+    fetch(BASE + '/api/investigations/').then(function(r) { return r.json(); }).then(function(investigations) {
+        var totalFindings = 0;
+        var list = Array.isArray(investigations) ? investigations : [];
+        list.forEach(function(inv) {
+            if (inv.targets) {
+                inv.targets.forEach(function(t) {
+                    totalFindings += (t.findings ? t.findings.length : 0);
+                });
+            }
+        });
+        document.getElementById('qsTotalFindings').textContent = totalFindings + ' total findings across all cases';
+    }).catch(function() {
+        document.getElementById('qsTotalFindings').textContent = '-- total findings across all cases';
+    });
+}
+
+// ── Table Search & Filter ───────────────────────────────────────────
+var _activeStatusFilter = 'all';
+
+function filterTable() {
+    var query = (document.getElementById('caseSearchInput').value || '').toLowerCase();
+    var table = document.getElementById('invTable');
+    if (!table) return;
+    var rows = table.querySelectorAll('tbody tr');
+    rows.forEach(function(row) {
+        var text = row.textContent.toLowerCase();
+        var status = row.getAttribute('data-status') || '';
+        var matchesSearch = !query || text.indexOf(query) !== -1;
+        var matchesStatus = _activeStatusFilter === 'all' || status === _activeStatusFilter;
+        row.style.display = (matchesSearch && matchesStatus) ? '' : 'none';
+    });
+}
+
+function setStatusFilter(status, btn) {
+    _activeStatusFilter = status;
+    document.querySelectorAll('.filter-pill').forEach(function(p) { p.classList.remove('active'); });
+    btn.classList.add('active');
+    filterTable();
+}
 
 // ── Activity Timeline ────────────────────────────────────────────────
 (function() {
@@ -310,14 +414,27 @@ function loadKanban() {
             countEl.textContent = cols[status].length;
 
             cols[status].forEach(function(inv) {
-                var card = el('div', {class: 'kanban-card', draggable: 'true', 'data-id': inv.id, 'data-case': inv.case_number});
+                var priorityColors = {critical: 'var(--red)', high: '#f97316', medium: 'var(--yellow)', low: 'var(--green)'};
+                var stripeColor = priorityColors[inv.priority] || 'var(--border)';
+                var card = el('div', {class: 'kanban-card', draggable: 'true', 'data-id': inv.id, 'data-case': inv.case_number, style: 'border-left:4px solid ' + stripeColor + ';'});
                 card.appendChild(el('div', {class: 'kc-number', text: inv.case_number}));
                 var titleLink = el('a', {href: BASE + '/investigation/' + inv.case_number, class: 'kc-title', style: 'color:var(--text);text-decoration:none;display:block;'});
                 titleLink.textContent = inv.title;
                 card.appendChild(titleLink);
-                var meta = el('div', {class: 'kc-meta'});
+                var meta = el('div', {class: 'kc-meta', style: 'display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;margin-top:0.4rem;'});
                 if (inv.priority) {
                     meta.appendChild(el('span', {class: 'kc-badge badge-' + inv.priority, text: inv.priority}));
+                }
+                // Target and finding counts
+                var targetCount = (inv.targets && inv.targets.length) || 0;
+                var findingCount = 0;
+                if (inv.targets) { inv.targets.forEach(function(t) { findingCount += (t.findings && t.findings.length) || 0; }); }
+                meta.appendChild(el('span', {text: targetCount + ' targets', style: 'font-size:0.72rem;color:var(--dim);'}));
+                meta.appendChild(el('span', {text: findingCount + ' findings', style: 'font-size:0.72rem;color:var(--dim);'}));
+                // Last activity relative time
+                if (inv.updated_at) {
+                    var ago = relativeTime(inv.updated_at);
+                    meta.appendChild(el('span', {text: ago, style: 'font-size:0.72rem;color:var(--muted);'}));
                 }
                 card.appendChild(meta);
 

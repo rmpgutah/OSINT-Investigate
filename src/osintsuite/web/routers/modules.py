@@ -248,11 +248,20 @@ async def get_investigation_stats(
         all_findings.extend(findings)
         # Count distinct modules run for this target
         modules_seen = set()
+        flagged_count = 0
+        highest_conf = 0
         for f in findings:
             modules_seen.add(f.module_name)
+            if f.is_flagged:
+                flagged_count += 1
+            if (f.confidence or 0) > highest_conf:
+                highest_conf = f.confidence or 0
         target_comparison.append({
             "target_label": t.label,
+            "target_type": t.target_type,
             "findings_count": len(findings),
+            "flagged_count": flagged_count,
+            "highest_confidence": highest_conf,
             "modules_run": len(modules_seen),
         })
 

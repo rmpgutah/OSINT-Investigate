@@ -53,6 +53,27 @@
 
 /* Inline edit */
 .inline-edit-input { background: var(--bg); border: 1px solid var(--accent); border-radius: 4px; padding: 0.2rem 0.5rem; color: var(--text); font-size: 1.1rem; font-weight: 600; font-family: inherit; outline: none; width: 200px; }
+
+/* Compact target cards */
+.target-card.target-compact .expandable-detail { display: none; }
+.target-card.target-compact { padding: 0.75rem; }
+.target-card.target-compact .target-actions { margin-top: 0.5rem !important; }
+
+/* Module category badges */
+.module-cat-badges { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.4rem 0; }
+.module-cat-badge { font-size: 0.68rem; padding: 0.15rem 0.45rem; border-radius: 3px; font-weight: 600; letter-spacing: 0.02em; }
+.cat-criminal { background: rgba(239,68,68,0.15); color: #ef4444; }
+.cat-social { background: rgba(59,130,246,0.15); color: #3b82f6; }
+.cat-financial { background: rgba(34,197,94,0.15); color: #22c55e; }
+.cat-digital { background: rgba(6,182,212,0.15); color: #06b6d4; }
+.cat-location { background: rgba(249,115,22,0.15); color: #f97316; }
+.cat-identity { background: rgba(168,85,247,0.15); color: #a855f7; }
+.cat-communication { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.cat-network { background: rgba(156,163,175,0.15); color: #9ca3af; }
+
+/* Run dropdown category buttons */
+.run-cat-btn { display: block; width: 100%; text-align: left; padding: 0.45rem 1rem; background: none; border: none; color: var(--text); font-size: 0.85rem; cursor: pointer; font-family: inherit; }
+.run-cat-btn:hover { background: var(--bg); }
 </style>
 {% endblock %}
 
@@ -95,12 +116,39 @@
     </div>
     {% endif %}
 
+    <!-- Investigation Progress Bar -->
+    <div class="card" id="invProgressCard" style="margin-bottom:1rem;padding:0.75rem 1rem;display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem;">
+            <span style="font-size:0.88rem;font-weight:600;color:var(--text);">Investigation Progress</span>
+            <span id="invProgressText" style="font-size:0.82rem;color:var(--dim);">0/0 modules run (0%)</span>
+        </div>
+        <div style="height:8px;background:var(--bg);border-radius:4px;overflow:hidden;">
+            <div id="invProgressBar" style="height:100%;background:var(--accent);border-radius:4px;transition:width 0.4s;width:0%;"></div>
+        </div>
+    </div>
+
     <!-- Action bar -->
     <div style="display: flex; gap: 0.6rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
         <button class="btn btn-primary" onclick="document.getElementById('addTargetModal').style.display='flex'">+ Add Target</button>
         <button class="btn" onclick="runCorrelations()">Correlate Targets</button>
         <a class="btn" href="{{ request.scope.get('root_path', '') }}/investigation/{{ investigation.case_number }}/summary">Summary</a>
-        <button class="btn btn-primary" onclick="bulkRunAll(this)">Run All Targets</button>
+        <!-- Run dropdown with category groups -->
+        <div style="position:relative;display:inline-block;" id="runDropdownWrap">
+            <button class="btn btn-primary" onclick="bulkRunAll(this)">Run All Targets</button>
+            <button class="btn btn-primary" onclick="toggleRunDropdown()" style="padding:0.45rem 0.5rem;margin-left:-4px;border-left:1px solid rgba(255,255,255,0.2);">&#9662;</button>
+            <div id="runDropdownMenu" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);min-width:200px;z-index:50;box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+                <div style="padding:0.5rem 0;">
+                    <button class="run-cat-btn" onclick="runCategoryAll('criminal')">Run Criminal</button>
+                    <button class="run-cat-btn" onclick="runCategoryAll('social')">Run Social</button>
+                    <button class="run-cat-btn" onclick="runCategoryAll('financial')">Run Financial</button>
+                    <button class="run-cat-btn" onclick="runCategoryAll('digital')">Run Digital</button>
+                    <button class="run-cat-btn" onclick="runCategoryAll('location')">Run Location</button>
+                    <button class="run-cat-btn" onclick="runCategoryAll('identity')">Run Identity</button>
+                    <button class="run-cat-btn" onclick="runCategoryAll('communication')">Run Communication</button>
+                    <button class="run-cat-btn" onclick="runCategoryAll('network')">Run Network</button>
+                </div>
+            </div>
+        </div>
         <button class="btn btn-danger" onclick="deleteInvestigation()">Delete Case</button>
     </div>
 
@@ -130,18 +178,26 @@
     <div class="tab-content active" id="maintab-targets">
         <div class="section">
             <div class="section-header">
-                <h2>Targets ({{ investigation.targets|length }})</h2>
+                <div style="display:flex;align-items:center;gap:1rem;">
+                    <h2>Targets ({{ investigation.targets|length }})</h2>
+                    {% if investigation.targets|length > 0 %}
+                    <div class="view-toggle">
+                        <button class="{% if investigation.targets|length <= 5 %}active{% endif %}" id="targetExpandedBtn" onclick="setTargetView('expanded')">Expanded</button>
+                        <button class="{% if investigation.targets|length > 5 %}active{% endif %}" id="targetCompactBtn" onclick="setTargetView('compact')">Compact</button>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
 
             {% if investigation.targets %}
-            <div class="target-grid">
+            <div class="target-grid" id="targetGrid">
                 {% for target in investigation.targets %}
-                <div class="card target-card" id="target-{{ target.id }}">
+                <div class="card target-card {% if investigation.targets|length > 5 %}target-compact{% endif %}" id="target-{{ target.id }}" data-target-id="{{ target.id }}">
                     <div class="target-header">
                         <span class="badge badge-type">{{ target.target_type }}</span>
                         <a href="{{ request.scope.get('root_path', '') }}/target/{{ target.id }}/profile" class="target-label-link" data-target-id="{{ target.id }}">{{ target.label }}</a>
                     </div>
-                    <div class="target-details">
+                    <div class="target-details expandable-detail">
                         {% if target.full_name %}<p><strong>Name:</strong> {{ target.full_name }}</p>{% endif %}
                         {% if target.email %}<p><strong>Email:</strong> {{ target.email }}</p>{% endif %}
                         {% if target.phone %}<p><strong>Phone:</strong> {{ target.phone }}</p>{% endif %}
@@ -151,8 +207,10 @@
                         <span>{{ target.findings|length }} findings</span>
                         <span>{{ target.module_runs|length }} runs</span>
                     </div>
+                    <!-- Module category badges -->
+                    <div class="module-cat-badges" id="catbadges-{{ target.id }}"></div>
                     <!-- Module pills: individual module controls -->
-                    <div class="module-pills" id="modules-{{ target.id }}"></div>
+                    <div class="module-pills expandable-detail" id="modules-{{ target.id }}"></div>
                     <div class="target-actions" style="margin-top: 0.75rem;">
                         <a href="{{ request.scope.get('root_path', '') }}/target/{{ target.id }}/profile" class="btn btn-sm">Profile</a>
                         <button class="btn btn-sm" onclick="peekFindings('{{ target.id }}', '{{ target.label }}')">Peek</button>
@@ -163,10 +221,43 @@
                 {% endfor %}
             </div>
             {% else %}
-            <div class="empty-state">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem; opacity: 0.4;"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a7.5 7.5 0 0 1 13 0"/></svg>
-                <p>No targets added yet.</p>
-                <p style="font-size: 0.88rem; margin-top: 0.5rem;">Click <strong>+ Add Target</strong> to begin your investigation.</p>
+            <div class="empty-state" style="padding:2.5rem 1.5rem;">
+                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" style="margin-bottom:1rem;opacity:0.7;">
+                    <circle cx="12" cy="7" r="4"/><path d="M5.5 21a7.5 7.5 0 0 1 13 0"/>
+                    <path d="M19 8l2 2-2 2" opacity="0.5"/><path d="M5 8l-2 2 2 2" opacity="0.5"/>
+                </svg>
+                <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem;color:var(--text);">Add your first target</h3>
+                <p style="font-size:0.88rem;color:var(--dim);max-width:400px;margin:0 auto 1.25rem;">Choose a target type below to begin your investigation.</p>
+                <div style="display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;">
+                    <button class="btn btn-sm" onclick="prefillTargetType('person')" style="border-left:3px solid #3b82f6;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a7.5 7.5 0 0 1 13 0"/></svg>
+                        Person
+                    </button>
+                    <button class="btn btn-sm" onclick="prefillTargetType('domain')" style="border-left:3px solid #22c55e;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        Domain
+                    </button>
+                    <button class="btn btn-sm" onclick="prefillTargetType('email')" style="border-left:3px solid #f59e0b;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/></svg>
+                        Email
+                    </button>
+                    <button class="btn btn-sm" onclick="prefillTargetType('phone')" style="border-left:3px solid #a855f7;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+                        Phone
+                    </button>
+                    <button class="btn btn-sm" onclick="prefillTargetType('username')" style="border-left:3px solid #06b6d4;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        Username
+                    </button>
+                    <button class="btn btn-sm" onclick="prefillTargetType('ip')" style="border-left:3px solid #ef4444;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>
+                        IP Address
+                    </button>
+                    <button class="btn btn-sm" onclick="prefillTargetType('organization')" style="border-left:3px solid #f97316;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+                        Organization
+                    </button>
+                </div>
             </div>
             {% endif %}
         </div>
@@ -448,11 +539,14 @@ async function loadModulePills() {
             const resp = await fetch(BASE + '/api/modules/for-target/' + targetId);
             const data = await resp.json();
             container.replaceChildren();
-            data.modules.forEach(mod => {
+            var mods = data.modules || [];
+            _allModulesByTarget[targetId] = mods;
+            mods.forEach(mod => {
                 const pill = el('span', {class: 'module-pill', text: mod.name.replace(/_/g, ' '), title: mod.description});
                 pill.addEventListener('click', () => runSingleModule(targetId, mod.name, pill));
                 container.appendChild(pill);
             });
+            loadModuleCategoryBadges(targetId, mods);
         } catch(e) { /* silent */ }
     }
 }
@@ -1058,7 +1152,167 @@ document.querySelectorAll('.target-label-link').forEach(link => {
     });
 });
 
+// ── Module Categories ────────────────────────────────────────────
+var MODULE_CATEGORIES = {
+    criminal: ['criminal_records','sex_offender','warrant_check','court_records','arrest_records','incarceration','parole','criminal_history','dui_records','fbi_most_wanted','interpol_notices','dea_watchlist','terrorist_watchlist','sanctions_check','fraud_check'],
+    social: ['social_media','social_profiles','dating_profiles','forum_search','blog_search','reddit_search','twitter_deep','facebook_lookup','instagram_lookup','linkedin_lookup','tiktok_lookup','youtube_search','social_sentiment','influencer_check','social_connections'],
+    financial: ['financial_records','bankruptcy','liens_judgments','property_records','business_ownership','corporate_filings','sec_filings','tax_liens','asset_search','bank_accounts','crypto_wallets','financial_fraud','credit_header','ucc_filings','investment_records'],
+    digital: ['domain_whois','dns_records','ip_geolocation','reverse_ip','ssl_certificates','subdomain_enum','website_tech','email_verification','breach_check','dark_web','paste_sites','malware_check','phishing_check','digital_footprint','metadata_extraction'],
+    location: ['address_history','geocoding','satellite_imagery','neighborhood_data','property_ownership','location_history','geofence_check','travel_records','immigration_records','border_crossings','location_analytics','cell_tower','wifi_mapping','gps_tracking','venue_check'],
+    identity: ['identity_verification','ssn_trace','dob_lookup','alias_search','name_variations','background_check','education_verify','employment_verify','professional_license','voter_registration','birth_records','death_records','marriage_records','divorce_records','adoption_records'],
+    communication: ['phone_lookup','reverse_phone','caller_id','voip_detection','sms_analysis','email_header','email_trace','communication_pattern','call_records','messaging_apps','encrypted_comms','radio_frequency','ham_radio','communication_intercept','metadata_comms'],
+    network: ['network_mapping','connection_analysis','associate_search','relationship_graph','organization_chart','supply_chain','vendor_analysis','partnership_records','affiliate_network','social_graph','link_analysis','pattern_detection','anomaly_detection','clustering','network_visualization']
+};
+
+function getCategoryForModule(moduleName) {
+    for (var cat in MODULE_CATEGORIES) {
+        if (MODULE_CATEGORIES[cat].indexOf(moduleName) !== -1) return cat;
+    }
+    // Fallback: match by prefix
+    var name = moduleName.toLowerCase();
+    if (name.indexOf('criminal') !== -1 || name.indexOf('court') !== -1 || name.indexOf('warrant') !== -1 || name.indexOf('arrest') !== -1) return 'criminal';
+    if (name.indexOf('social') !== -1 || name.indexOf('facebook') !== -1 || name.indexOf('twitter') !== -1 || name.indexOf('linkedin') !== -1 || name.indexOf('instagram') !== -1) return 'social';
+    if (name.indexOf('financial') !== -1 || name.indexOf('bank') !== -1 || name.indexOf('property') !== -1 || name.indexOf('business') !== -1 || name.indexOf('corporate') !== -1) return 'financial';
+    if (name.indexOf('domain') !== -1 || name.indexOf('dns') !== -1 || name.indexOf('ip_') !== -1 || name.indexOf('breach') !== -1 || name.indexOf('dark_web') !== -1 || name.indexOf('email_ver') !== -1) return 'digital';
+    if (name.indexOf('address') !== -1 || name.indexOf('geo') !== -1 || name.indexOf('location') !== -1 || name.indexOf('travel') !== -1) return 'location';
+    if (name.indexOf('identity') !== -1 || name.indexOf('ssn') !== -1 || name.indexOf('background') !== -1 || name.indexOf('license') !== -1 || name.indexOf('voter') !== -1) return 'identity';
+    if (name.indexOf('phone') !== -1 || name.indexOf('caller') !== -1 || name.indexOf('sms') !== -1 || name.indexOf('email_header') !== -1 || name.indexOf('voip') !== -1) return 'communication';
+    if (name.indexOf('network') !== -1 || name.indexOf('graph') !== -1 || name.indexOf('connection') !== -1 || name.indexOf('associate') !== -1) return 'network';
+    return 'digital'; // default
+}
+
+var CAT_LABELS = {criminal:'Criminal',social:'Social',financial:'Financial',digital:'Digital',location:'Location',identity:'Identity',communication:'Comms',network:'Network'};
+
+// ── Module Category Badges per Target ───────────────────────────
+var _allModulesByTarget = {};
+
+function loadModuleCategoryBadges(targetId, modules) {
+    var container = document.getElementById('catbadges-' + targetId);
+    if (!container) return;
+    container.replaceChildren();
+
+    // Determine which categories have been run
+    var card = document.getElementById('target-' + targetId);
+    var runsText = card ? card.querySelector('.target-stats') : null;
+    var hasRuns = runsText && runsText.textContent.indexOf('0 runs') === -1;
+
+    var categoriesPresent = {};
+    modules.forEach(function(mod) {
+        var cat = getCategoryForModule(mod.name);
+        if (!categoriesPresent[cat]) categoriesPresent[cat] = 0;
+        categoriesPresent[cat]++;
+    });
+
+    for (var cat in categoriesPresent) {
+        var badge = el('span', {class: 'module-cat-badge cat-' + cat, text: CAT_LABELS[cat] + ' (' + categoriesPresent[cat] + ')'});
+        container.appendChild(badge);
+    }
+}
+
+// ── Investigation Progress Bar ──────────────────────────────────
+function updateInvestigationProgress() {
+    var card = document.getElementById('invProgressCard');
+    if (!TARGET_IDS.length) return;
+
+    var totalModules = 0;
+    var totalRuns = 0;
+    var pending = TARGET_IDS.length;
+
+    TARGET_IDS.forEach(function(tid) {
+        fetch(BASE + '/api/modules/for-target/' + tid).then(function(r) { return r.json(); }).then(function(data) {
+            var mods = data.modules || [];
+            totalModules += mods.length;
+
+            // Count completed runs from the target card stats
+            var targetCard = document.getElementById('target-' + tid);
+            if (targetCard) {
+                var statsEl = targetCard.querySelector('.target-stats');
+                if (statsEl) {
+                    var match = statsEl.textContent.match(/(\d+)\s*runs/);
+                    if (match) totalRuns += parseInt(match[1], 10);
+                }
+            }
+
+            pending--;
+            if (pending <= 0) {
+                card.style.display = '';
+                var pct = totalModules > 0 ? Math.round((totalRuns / totalModules) * 100) : 0;
+                document.getElementById('invProgressBar').style.width = pct + '%';
+                document.getElementById('invProgressText').textContent = totalRuns + '/' + totalModules + ' modules run (' + pct + '%)';
+            }
+        }).catch(function() { pending--; });
+    });
+}
+
+// ── Target View Toggle (Compact / Expanded) ─────────────────────
+function setTargetView(mode) {
+    var cards = document.querySelectorAll('.target-card');
+    var compactBtn = document.getElementById('targetCompactBtn');
+    var expandedBtn = document.getElementById('targetExpandedBtn');
+    if (compactBtn) compactBtn.classList.remove('active');
+    if (expandedBtn) expandedBtn.classList.remove('active');
+
+    if (mode === 'compact') {
+        cards.forEach(function(c) { c.classList.add('target-compact'); });
+        if (compactBtn) compactBtn.classList.add('active');
+    } else {
+        cards.forEach(function(c) { c.classList.remove('target-compact'); });
+        if (expandedBtn) expandedBtn.classList.add('active');
+    }
+}
+
+// ── Prefill target type from empty-state cards ──────────────────
+function prefillTargetType(type) {
+    document.getElementById('addTargetModal').style.display = 'flex';
+    document.getElementById('targetType').value = type;
+    document.getElementById('targetLabel').focus();
+}
+
+// ── Run Dropdown Toggle ─────────────────────────────────────────
+function toggleRunDropdown() {
+    var menu = document.getElementById('runDropdownMenu');
+    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', function(e) {
+    var wrap = document.getElementById('runDropdownWrap');
+    if (wrap && !wrap.contains(e.target)) {
+        document.getElementById('runDropdownMenu').style.display = 'none';
+    }
+});
+
+// ── Run Category on All Targets ─────────────────────────────────
+async function runCategoryAll(category) {
+    document.getElementById('runDropdownMenu').style.display = 'none';
+    var catModules = MODULE_CATEGORIES[category] || [];
+    if (!catModules.length) { showToast('No modules in category: ' + category, 'error'); return; }
+    if (!confirm('Run all ' + CAT_LABELS[category] + ' modules on all targets?')) return;
+
+    showToast('Running ' + CAT_LABELS[category] + ' modules...');
+
+    for (var i = 0; i < TARGET_IDS.length; i++) {
+        var tid = TARGET_IDS[i];
+        for (var j = 0; j < catModules.length; j++) {
+            try {
+                await fetch(BASE + '/api/targets/' + tid + '/run', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({module_name: catModules[j]})
+                });
+            } catch(e) { /* continue */ }
+        }
+    }
+
+    showToast(CAT_LABELS[category] + ' modules complete. Refreshing...');
+    setTimeout(function() { window.location.reload(); }, 1500);
+}
+
+// ── Patched loadModulePills to also build category badges ───────
+var _origLoadModulePills = loadModulePills;
+
 // ── Init ─────────────────────────────────────────────────────────
 loadModulePills();
+updateInvestigationProgress();
 </script>
 {% endblock %}
