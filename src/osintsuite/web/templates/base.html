@@ -138,6 +138,51 @@
     /* Footer */
     .footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--border); margin-top: 3rem; }
 
+    /* Search */
+    .search-wrapper { position: relative; }
+    .search-input { background: var(--bg); border: 1px solid var(--border); border-radius: 20px; padding: 0.4rem 0.9rem 0.4rem 2.2rem; color: var(--text); font-size: 0.85rem; width: 220px; transition: all 0.2s; font-family: inherit; }
+    .search-input:focus { outline: none; border-color: var(--accent); width: 300px; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+    .search-input::placeholder { color: var(--muted); }
+    .search-icon { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+    .search-results { position: absolute; top: calc(100% + 6px); right: 0; width: 380px; background: var(--card); border: 1px solid var(--border); border-radius: var(--r); box-shadow: 0 12px 40px rgba(0,0,0,0.5); display: none; z-index: 60; max-height: 400px; overflow-y: auto; }
+    .search-results.active { display: block; }
+    .search-results .sr-section { padding: 0.5rem 0.75rem; color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; border-bottom: 1px solid var(--border); }
+    .search-results a { display: block; padding: 0.6rem 0.75rem; color: var(--text); text-decoration: none; font-size: 0.88rem; border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    .search-results a:hover { background: var(--hover); text-decoration: none; }
+    .search-results a small { color: var(--muted); font-size: 0.78rem; }
+    .search-results .sr-empty { padding: 1.5rem; text-align: center; color: var(--muted); font-size: 0.85rem; }
+
+    /* Module pills */
+    .module-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+    .module-pill { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.6rem; background: var(--bg2); border: 1px solid var(--border); border-radius: 20px; font-size: 0.72rem; color: var(--dim); cursor: pointer; transition: all 0.15s; }
+    .module-pill:hover { border-color: var(--accent); color: var(--accent); }
+    .module-pill.running { border-color: var(--yellow); color: var(--yellow); animation: pulse 1.5s infinite; }
+    .module-pill.done { border-color: var(--green); color: var(--green); }
+    .module-pill.failed { border-color: var(--red); color: var(--red); }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    /* Notes */
+    .note-list { max-height: 300px; overflow-y: auto; }
+    .note-item { padding: 0.75rem; border-bottom: 1px solid var(--border); }
+    .note-item:last-child { border-bottom: none; }
+    .note-item p { font-size: 0.9rem; }
+    .note-item .note-meta { color: var(--muted); font-size: 0.75rem; margin-top: 0.25rem; }
+    .note-input { display: flex; gap: 0.5rem; padding: 0.75rem; border-top: 1px solid var(--border); }
+    .note-input input { flex: 1; }
+
+    /* Correlations */
+    .correlation-card { display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); margin-bottom: 0.5rem; }
+    .correlation-card .corr-link { color: var(--yellow); font-size: 1.2rem; }
+    .correlation-card .corr-field { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; }
+    .correlation-card .corr-value { font-size: 0.88rem; color: var(--dim); }
+    .correlation-card .corr-badge { font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 10px; }
+    .corr-exact { background: #064e3b; color: #6ee7b7; }
+    .corr-fuzzy { background: #78350f; color: #fcd34d; }
+
+    /* Status select */
+    .status-select { background: transparent; border: 1px solid var(--border); border-radius: 20px; padding: 0.25rem 0.6rem; color: var(--text); font-size: 0.82rem; cursor: pointer; font-family: inherit; }
+    .status-select:focus { outline: none; border-color: var(--accent); }
+
     /* Toast notification */
     .toast { position: fixed; bottom: 2rem; right: 2rem; background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 1rem 1.5rem; box-shadow: 0 8px 30px rgba(0,0,0,0.4); z-index: 200; transform: translateY(120%); transition: transform 0.3s ease; }
     .toast.show { transform: translateY(0); }
@@ -145,6 +190,9 @@
     .toast-error { border-left: 4px solid var(--red); }
 
     @media (max-width: 768px) {
+        .search-input { width: 160px; }
+        .search-input:focus { width: 200px; }
+        .search-results { width: 300px; }
         .container { padding: 1rem; }
         .profile-grid { grid-template-columns: 1fr; }
         .target-grid { grid-template-columns: 1fr; }
@@ -164,6 +212,11 @@
         <div class="nav-links">
             <a href="/">Dashboard</a>
             <a href="/api/investigations" target="_blank">API</a>
+            <div class="search-wrapper">
+                <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <input type="text" class="search-input" id="globalSearch" placeholder="Search cases, targets..." autocomplete="off">
+                <div class="search-results" id="searchResults"></div>
+            </div>
         </div>
     </nav>
 
@@ -184,6 +237,64 @@
         t.className = 'toast toast-' + type + ' show';
         setTimeout(() => t.classList.remove('show'), 3500);
     }
+
+    function el(tag, attrs, children) {
+        const e = document.createElement(tag);
+        if (attrs) Object.entries(attrs).forEach(([k,v]) => { if (k === 'text') e.textContent = v; else e.setAttribute(k, v); });
+        if (children) children.forEach(c => e.appendChild(c));
+        return e;
+    }
+
+    // Global search
+    (function() {
+        const input = document.getElementById('globalSearch');
+        const results = document.getElementById('searchResults');
+        let debounce = null;
+
+        input.addEventListener('input', () => {
+            clearTimeout(debounce);
+            const q = input.value.trim();
+            if (q.length < 2) { results.classList.remove('active'); return; }
+            debounce = setTimeout(async () => {
+                try {
+                    const resp = await fetch('/api/modules/search?q=' + encodeURIComponent(q));
+                    const data = await resp.json();
+                    results.replaceChildren();
+
+                    if (data.investigations.length) {
+                        results.appendChild(el('div', {class: 'sr-section', text: 'Cases'}));
+                        data.investigations.forEach(i => {
+                            const link = el('a', {href: '/investigation/' + i.case_number});
+                            link.appendChild(document.createTextNode(i.case_number + ' \u2014 ' + i.title + ' '));
+                            link.appendChild(el('small', {text: i.status}));
+                            results.appendChild(link);
+                        });
+                    }
+                    if (data.targets.length) {
+                        results.appendChild(el('div', {class: 'sr-section', text: 'Targets'}));
+                        data.targets.forEach(t => {
+                            const link = el('a', {href: '/target/' + t.id + '/profile'});
+                            link.appendChild(document.createTextNode(t.label + ' '));
+                            link.appendChild(el('small', {text: t.target_type}));
+                            results.appendChild(link);
+                        });
+                    }
+                    if (!data.investigations.length && !data.targets.length) {
+                        results.appendChild(el('div', {class: 'sr-empty', text: 'No results for "' + q + '"'}));
+                    }
+                    results.classList.add('active');
+                } catch(e) { results.classList.remove('active'); }
+            }, 300);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-wrapper')) results.classList.remove('active');
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') { results.classList.remove('active'); input.blur(); }
+        });
+    })();
     </script>
     {% block scripts %}{% endblock %}
 </body>
