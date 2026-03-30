@@ -34,6 +34,42 @@ from osintsuite.modules.username_osint import UsernameOsintModule
 from osintsuite.modules.google_dork import GoogleDorkModule
 from osintsuite.modules.paste_search import PasteSearchModule
 
+# v0.3 — Batch 1: People & Records
+from osintsuite.modules.court_records import CourtRecordsModule
+from osintsuite.modules.business_entity import BusinessEntityModule
+from osintsuite.modules.property_records import PropertyRecordsModule
+from osintsuite.modules.vehicle_lookup import VehicleLookupModule
+from osintsuite.modules.sex_offender import SexOffenderModule
+from osintsuite.modules.bankruptcy_records import BankruptcyRecordsModule
+from osintsuite.modules.ssdi_lookup import SsdiLookupModule
+from osintsuite.modules.professional_license import ProfessionalLicenseModule
+from osintsuite.modules.nonprofit_lookup import NonprofitLookupModule
+from osintsuite.modules.political_donations import PoliticalDonationsModule
+
+# v0.3 — Batch 2: Digital & Cyber
+from osintsuite.modules.dns_history import DnsHistoryModule
+from osintsuite.modules.subdomain_enum import SubdomainEnumModule
+from osintsuite.modules.tech_stack import TechStackModule
+from osintsuite.modules.wifi_lookup import WifiLookupModule
+from osintsuite.modules.crypto_lookup import CryptoLookupModule
+from osintsuite.modules.dark_web import DarkWebModule
+from osintsuite.modules.news_monitor import NewsMonitorModule
+from osintsuite.modules.github_intel import GithubIntelModule
+from osintsuite.modules.phone_disposable import PhoneDisposableModule
+from osintsuite.modules.image_hash import ImageHashModule
+
+# v0.3 — Batch 3: Location & Physical
+from osintsuite.modules.geolocation import GeolocationModule
+from osintsuite.modules.address_validate import AddressValidateModule
+from osintsuite.modules.aerial_view import AerialViewModule
+from osintsuite.modules.weather_forensics import WeatherForensicsModule
+from osintsuite.modules.timezone_forensics import TimezoneForensicsModule
+from osintsuite.modules.flight_track import FlightTrackModule
+from osintsuite.modules.ship_track import ShipTrackModule
+from osintsuite.modules.cell_tower import CellTowerModule
+from osintsuite.modules.public_cameras import PublicCamerasModule
+from osintsuite.modules.radio_freq import RadioFreqModule
+
 if TYPE_CHECKING:
     pass
 
@@ -85,6 +121,42 @@ class InvestigationEngine:
         self.modules["username_osint"] = UsernameOsintModule(client, limiter)
         self.modules["google_dork"] = GoogleDorkModule(client, limiter)
         self.modules["paste_search"] = PasteSearchModule(client, limiter)
+
+        # v0.3 — Batch 1: People & Records
+        self.modules["court_records"] = CourtRecordsModule(client, limiter)
+        self.modules["business_entity"] = BusinessEntityModule(client, limiter)
+        self.modules["property_records"] = PropertyRecordsModule(client, limiter)
+        self.modules["vehicle_lookup"] = VehicleLookupModule(client, limiter)
+        self.modules["sex_offender"] = SexOffenderModule(client, limiter)
+        self.modules["bankruptcy_records"] = BankruptcyRecordsModule(client, limiter)
+        self.modules["ssdi_lookup"] = SsdiLookupModule(client, limiter)
+        self.modules["professional_license"] = ProfessionalLicenseModule(client, limiter)
+        self.modules["nonprofit_lookup"] = NonprofitLookupModule(client, limiter)
+        self.modules["political_donations"] = PoliticalDonationsModule(client, limiter)
+
+        # v0.3 — Batch 2: Digital & Cyber
+        self.modules["dns_history"] = DnsHistoryModule(client, limiter)
+        self.modules["subdomain_enum"] = SubdomainEnumModule(client, limiter)
+        self.modules["tech_stack"] = TechStackModule(client, limiter)
+        self.modules["wifi_lookup"] = WifiLookupModule(client, limiter)
+        self.modules["crypto_lookup"] = CryptoLookupModule(client, limiter)
+        self.modules["dark_web"] = DarkWebModule(client, limiter)
+        self.modules["news_monitor"] = NewsMonitorModule(client, limiter)
+        self.modules["github_intel"] = GithubIntelModule(client, limiter)
+        self.modules["phone_disposable"] = PhoneDisposableModule(client, limiter)
+        self.modules["image_hash"] = ImageHashModule(client, limiter)
+
+        # v0.3 — Batch 3: Location & Physical
+        self.modules["geolocation"] = GeolocationModule(client, limiter)
+        self.modules["address_validate"] = AddressValidateModule(client, limiter)
+        self.modules["aerial_view"] = AerialViewModule(client, limiter)
+        self.modules["weather_forensics"] = WeatherForensicsModule(client, limiter)
+        self.modules["timezone_forensics"] = TimezoneForensicsModule(client, limiter)
+        self.modules["flight_track"] = FlightTrackModule(client, limiter)
+        self.modules["ship_track"] = ShipTrackModule(client, limiter)
+        self.modules["cell_tower"] = CellTowerModule(client, limiter)
+        self.modules["public_cameras"] = PublicCamerasModule(client, limiter)
+        self.modules["radio_freq"] = RadioFreqModule(client, limiter)
 
     def list_modules(self) -> dict[str, str]:
         """Return module names and descriptions."""
