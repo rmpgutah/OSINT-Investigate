@@ -423,6 +423,64 @@ class Repository:
 
     # ── Deduplication ──────────────────────────────────────────────
 
+    async def get_investigation_stats(self) -> dict:
+        """Global investigation statistics."""
+        inv_count = await self.session.scalar(select(func.count(Investigation.id)))
+        target_count = await self.session.scalar(select(func.count(Target.id)))
+        finding_count = await self.session.scalar(select(func.count(Finding.id)))
+        run_count = await self.session.scalar(select(func.count(ModuleRun.id)))
+
+        # By status
+        status_counts = {}
+        for status in ['open', 'active', 'closed', 'archived']:
+            c = await self.session.scalar(
+                select(func.count(Investigation.id)).where(Investigation.status == status)
+            )
+            status_counts[status] = c or 0
+
+        return {
+            "total_investigations": inv_count or 0,
+            "total_targets": target_count or 0,
+            "total_findings": finding_count or 0,
+            "total_module_runs": run_count or 0,
+            "by_status": status_counts,
+            "avg_findings_per_case": round((finding_count or 0) / max(inv_count or 1, 1), 1),
+        }
+
+    async def get_finding_stats(self, target_id: uuid.UUID) -> dict:
+        """Finding statistics for a target."""
+        findings = await self.get_findings_by_target(target_id)
+        by_module: dict[str, int] = {}
+        high = med = low = flagged = reviewed = 0
+        for f in findings:
+            by_module[f.module_name] = by_module.get(f.module_name, 0) + 1
+            c = f.confidence or 0
+            if c > 70:
+                high += 1
+            elif c > 40:
+                med += 1
+            else:
+                low += 1
+            if f.is_flagged:
+                flagged += 1
+            if f.is_reviewed:
+                reviewed += 1
+
+        return {
+            "total": len(findings),
+            "by_module": by_module,
+            "confidence": {"high": high, "medium": med, "low": low},
+            "flagged": flagged,
+            "reviewed": reviewed,
+        }
+
+    async def bulk_update_findings(self, finding_ids: list, **fields) -> int:
+        """Update multiple findings at once."""
+        stmt = update(Finding).where(Finding.id.in_(finding_ids)).values(**fields)
+        result = await self.session.execute(stmt)
+        await self.session.commit()
+        return result.rowcount
+
     async def deduplicate_findings(self, target_id: uuid.UUID) -> dict:
         """Find findings with same title+source, keep highest confidence, delete rest."""
         findings = await self.get_findings_by_target(target_id)

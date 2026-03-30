@@ -87,6 +87,24 @@
 .timeline-item:first-child::before {
     animation: timelinePulse 2s ease infinite;
 }
+
+/* ── Auto-refresh toggle ────────────────────────────────────── */
+.auto-refresh-wrap { display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; color: var(--dim); }
+.auto-refresh-toggle { position: relative; width: 34px; height: 18px; background: var(--bg); border: 1px solid var(--border); border-radius: 9px; cursor: pointer; transition: background 0.2s; }
+.auto-refresh-toggle.active { background: var(--accent); border-color: var(--accent); }
+.auto-refresh-toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
+.auto-refresh-toggle.active::after { transform: translateX(16px); }
+.auto-refresh-countdown { min-width: 2rem; text-align: center; font-variant-numeric: tabular-nums; }
+
+/* ── Batch delete bar ───────────────────────────────────────── */
+.batch-delete-bar { display: none; align-items: center; gap: 0.75rem; padding: 0.6rem 1rem; background: var(--card); border: 1px solid var(--border); border-radius: var(--r); margin-bottom: 0.75rem; font-size: 0.85rem; }
+.batch-delete-bar.active { display: flex; }
+.batch-delete-bar .batch-count { font-weight: 700; color: var(--accent); }
+
+/* ── Quick-create template buttons ──────────────────────────── */
+.quick-create-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.quick-create-btn { padding: 0.3rem 0.7rem; font-size: 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r); color: var(--dim); cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap; }
+.quick-create-btn:hover { border-color: var(--accent); color: var(--accent); }
 </style>
 {% endblock %}
 
@@ -162,10 +180,23 @@
                     <button class="active" id="viewTableBtn" onclick="switchView('table')">Table</button>
                     <button id="viewKanbanBtn" onclick="switchView('kanban')">Kanban</button>
                 </div>
+                <div class="auto-refresh-wrap">
+                    <div class="auto-refresh-toggle" id="autoRefreshToggle" onclick="toggleAutoRefresh()" title="Auto-refresh every 30s"></div>
+                    <span>Auto-refresh</span>
+                    <span class="auto-refresh-countdown" id="autoRefreshCountdown"></span>
+                </div>
             </div>
-            <button class="btn btn-primary" onclick="document.getElementById('newCaseModal').style.display='flex'">
-                + New Case
-            </button>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;">
+                <button class="btn btn-primary" onclick="document.getElementById('newCaseModal').style.display='flex'">
+                    + New Case
+                </button>
+                <div class="quick-create-row">
+                    <button class="quick-create-btn" onclick="quickCreateFromTemplate('Missing Person')">Quick: Missing Person</button>
+                    <button class="quick-create-btn" onclick="quickCreateFromTemplate('Background Check')">Quick: Background Check</button>
+                    <button class="quick-create-btn" onclick="quickCreateFromTemplate('Digital Footprint')">Quick: Digital Footprint</button>
+                    <button class="quick-create-btn" onclick="quickCreateFromTemplate('Corporate Due Diligence')">Quick: Corporate Due Diligence</button>
+                </div>
+            </div>
         </div>
 
         <!-- Search & Filter Bar -->
@@ -201,12 +232,21 @@
             </div>
         </div>
 
+        <!-- Batch Delete Bar -->
+        <div class="batch-delete-bar" id="batchDeleteBar">
+            <span class="batch-count" id="batchDeleteCount">0</span> cases selected
+            <div style="flex:1;"></div>
+            <button class="btn btn-sm btn-danger" onclick="batchDeleteSelected()">Delete Selected</button>
+            <button class="btn btn-sm" onclick="clearBatchSelection()">Clear</button>
+        </div>
+
         <!-- Table View (default) -->
         {% if investigations %}
         <div id="tableView">
         <table class="data-table" id="invTable">
             <thead>
                 <tr>
+                    <th style="width:2rem;"><input type="checkbox" id="selectAllCases" onchange="toggleSelectAllCases(this)"></th>
                     <th>Case #</th>
                     <th>Title</th>
                     <th>Status</th>
@@ -220,7 +260,8 @@
             </thead>
             <tbody>
                 {% for item in investigations %}
-                <tr id="row-{{ item.inv.id }}" class="clickable-row" data-href="{{ request.scope.get('root_path', '') }}/investigation/{{ item.inv.case_number }}" data-status="{{ item.inv.status }}" style="cursor:pointer;" onclick="if(!event.target.closest('a,button')){window.location.href=this.dataset.href;}">
+                <tr id="row-{{ item.inv.id }}" class="clickable-row" data-href="{{ request.scope.get('root_path', '') }}/investigation/{{ item.inv.case_number }}" data-status="{{ item.inv.status }}" data-inv-id="{{ item.inv.id }}" data-case-number="{{ item.inv.case_number }}" style="cursor:pointer;" onclick="if(!event.target.closest('a,button,input[type=checkbox]')){window.location.href=this.dataset.href;}">
+                    <td onclick="event.stopPropagation()"><input type="checkbox" class="case-cb" data-inv-id="{{ item.inv.id }}" data-case-number="{{ item.inv.case_number }}" onchange="updateBatchDeleteBar()"></td>
                     <td><a href="{{ request.scope.get('root_path', '') }}/investigation/{{ item.inv.case_number }}"><strong>{{ item.inv.case_number }}</strong></a></td>
                     <td>{{ item.inv.title }}</td>
                     <td><span class="badge badge-{{ item.inv.status }}">{{ item.inv.status }}</span></td>
@@ -675,5 +716,119 @@ document.addEventListener('keydown', function(e) {
         return;
     }
 });
+
+// ── Auto-refresh toggle with countdown ─────────────────────────────
+var _autoRefreshTimer = null;
+var _autoRefreshCountdown = null;
+var _autoRefreshSeconds = 30;
+
+function toggleAutoRefresh() {
+    var toggle = document.getElementById('autoRefreshToggle');
+    var countdownEl = document.getElementById('autoRefreshCountdown');
+    if (_autoRefreshTimer) {
+        clearTimeout(_autoRefreshTimer);
+        clearInterval(_autoRefreshCountdown);
+        _autoRefreshTimer = null;
+        _autoRefreshCountdown = null;
+        toggle.classList.remove('active');
+        countdownEl.textContent = '';
+    } else {
+        toggle.classList.add('active');
+        startAutoRefreshCycle();
+    }
+}
+
+function startAutoRefreshCycle() {
+    var countdownEl = document.getElementById('autoRefreshCountdown');
+    var remaining = _autoRefreshSeconds;
+    countdownEl.textContent = remaining + 's';
+    _autoRefreshCountdown = setInterval(function() {
+        remaining--;
+        countdownEl.textContent = remaining + 's';
+        if (remaining <= 0) {
+            clearInterval(_autoRefreshCountdown);
+        }
+    }, 1000);
+    _autoRefreshTimer = setTimeout(function() {
+        window.location.reload();
+    }, _autoRefreshSeconds * 1000);
+}
+
+// ── Batch delete cases ─────────────────────────────────────────────
+function toggleSelectAllCases(cb) {
+    document.querySelectorAll('.case-cb').forEach(function(c) {
+        if (c.closest('tr').style.display !== 'none') c.checked = cb.checked;
+    });
+    updateBatchDeleteBar();
+}
+
+function updateBatchDeleteBar() {
+    var checked = document.querySelectorAll('.case-cb:checked');
+    var bar = document.getElementById('batchDeleteBar');
+    var count = document.getElementById('batchDeleteCount');
+    if (checked.length > 0) {
+        bar.classList.add('active');
+        count.textContent = checked.length;
+    } else {
+        bar.classList.remove('active');
+    }
+}
+
+function clearBatchSelection() {
+    document.querySelectorAll('.case-cb').forEach(function(c) { c.checked = false; });
+    var sa = document.getElementById('selectAllCases');
+    if (sa) sa.checked = false;
+    updateBatchDeleteBar();
+}
+
+function batchDeleteSelected() {
+    var checked = document.querySelectorAll('.case-cb:checked');
+    if (!checked.length) return;
+    confirmAction('Delete ' + checked.length + ' selected case(s)? All targets, findings, and reports will be permanently removed.', async function() {
+        var success = 0;
+        for (var i = 0; i < checked.length; i++) {
+            var cb = checked[i];
+            var invId = cb.dataset.invId;
+            try {
+                var resp = await fetch(BASE + '/api/investigations/' + invId, { method: 'DELETE' });
+                if (resp.ok) {
+                    var row = document.getElementById('row-' + invId);
+                    if (row) row.remove();
+                    success++;
+                }
+            } catch(e) { /* continue */ }
+        }
+        showToast(success + ' case(s) deleted');
+        clearBatchSelection();
+    });
+}
+
+// ── Quick-create from template ─────────────────────────────────────
+async function quickCreateFromTemplate(templateName) {
+    showLoading();
+    try {
+        var resp = await fetch(BASE + '/api/workflow/from-template', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({template_name: templateName})
+        });
+        if (resp.ok) {
+            var data = await resp.json();
+            hideLoading();
+            showToast('Case created from "' + templateName + '" template');
+            var caseNum = data.case_number || data.id;
+            setTimeout(function() {
+                window.location.href = BASE + '/investigation/' + caseNum;
+            }, 600);
+        } else {
+            hideLoading();
+            var err = await resp.json().catch(function() { return {}; });
+            showToast('Failed: ' + (err.detail || 'Could not create from template'), 'error');
+        }
+    } catch(e) {
+        hideLoading();
+        showToast('Network error', 'error');
+    }
+}
 </script>
 {% endblock %}

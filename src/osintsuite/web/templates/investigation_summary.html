@@ -147,6 +147,7 @@
             <div style="display: flex; gap: 0.5rem;">
                 <button class="share-btn" onclick="copyShareLink(this)">&#128279; Copy Link</button>
                 <button class="refresh-btn" id="refreshBtn" onclick="refreshSummaryData(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg> Refresh Data</button>
+                <button class="refresh-btn" onclick="downloadAllCharts()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download All Charts</button>
                 <button class="btn" onclick="window.print()">Export PDF</button>
             </div>
             <span class="badge badge-{{ investigation.status }}" style="font-size: 0.85rem; padding: 0.3rem 0.9rem;">{{ investigation.status }}</span>
@@ -976,6 +977,38 @@ async function loadInvestigationTimeline() {
         container.replaceChildren();
         container.appendChild(el('div', {text: 'Failed to load timeline.', style: 'color: var(--muted); font-size: 0.85rem; text-align: center; padding: 1rem; width: 100%;'}));
     }
+}
+
+// ── Download All Charts as PNGs ──────────────────────────────────────
+function downloadAllCharts() {
+    var chartNames = {
+        'moduleChart': 'findings-per-module',
+        'confidenceChart': 'confidence-distribution',
+        'timelineChart': 'findings-over-time',
+        'findingTypeChart': 'finding-type-distribution'
+    };
+    var downloadCount = 0;
+    var chartKeys = Object.keys(chartNames);
+
+    chartKeys.forEach(function(canvasId, index) {
+        var inst = chartInstances[canvasId];
+        if (!inst) return;
+        // Stagger downloads slightly to avoid browser blocking
+        setTimeout(function() {
+            var url = inst.toBase64Image();
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = CASE_NUM + '_' + chartNames[canvasId] + '.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            downloadCount++;
+        }, index * 300);
+    });
+
+    setTimeout(function() {
+        showToast(downloadCount + ' chart(s) downloaded');
+    }, chartKeys.length * 300 + 200);
 }
 
 // ── Init ─────────────────────────────────────────────────────────────

@@ -148,6 +148,23 @@ tr.reviewed { opacity: 0.6; }
 .scroll-top-btn { position: fixed; bottom: 5rem; right: 2rem; width: 42px; height: 42px; border-radius: 50%; background: var(--card); border: 1px solid var(--border); color: var(--dim); cursor: pointer; font-size: 1.2rem; display: none; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); z-index: 88; transition: all 0.2s; }
 .scroll-top-btn:hover { background: var(--hover); color: var(--accent); border-color: var(--accent); }
 .scroll-top-btn.visible { display: flex; }
+
+/* ── Category run buttons ───────────────────────────────────── */
+.cat-run-bar { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem; }
+.cat-run-btn { padding: 0.3rem 0.7rem; font-size: 0.75rem; border-radius: var(--r); cursor: pointer; font-family: inherit; transition: all 0.15s; border: 1px solid; background: transparent; }
+.cat-run-btn:hover { opacity: 0.85; filter: brightness(1.15); }
+.cat-run-btn:disabled { opacity: 0.4; cursor: default; }
+.cat-run-criminal { border-color: #ef4444; color: #ef4444; }
+.cat-run-social { border-color: #3b82f6; color: #3b82f6; }
+.cat-run-financial { border-color: #f59e0b; color: #f59e0b; }
+.cat-run-digital { border-color: #a855f7; color: #a855f7; }
+.cat-run-location { border-color: #06b6d4; color: #06b6d4; }
+.cat-run-cyber { border-color: #ec4899; color: #ec4899; }
+
+/* ── Finding note icon ──────────────────────────────────────── */
+.note-icon-btn { background: none; border: none; cursor: pointer; font-size: 0.85rem; padding: 0.1rem 0.3rem; opacity: 0.3; transition: opacity 0.15s; color: var(--dim); }
+.note-icon-btn:hover, .note-icon-btn.has-note { opacity: 1; color: var(--accent); }
+.finding-note-input { background: var(--bg); border: 1px solid var(--accent); border-radius: 4px; padding: 0.2rem 0.5rem; color: var(--text); font-size: 0.78rem; font-family: inherit; outline: none; width: 200px; }
 </style>
 {% endblock %}
 
@@ -167,6 +184,7 @@ tr.reviewed { opacity: 0.6; }
         </div>
         <div style="display: flex; gap: 0.5rem;">
             <button class="btn btn-primary" onclick="runModules(this)">Run All Modules</button>
+            <button class="btn" onclick="exportFullProfile()">Export Full Profile</button>
             <div style="position: relative; display: inline-block;">
                 <button class="btn" onclick="this.nextElementSibling.classList.toggle('active')">Export</button>
                 <div class="search-results" style="display: none; width: 160px; top: calc(100% + 4px); left: 0; right: auto;">
@@ -254,6 +272,14 @@ tr.reviewed { opacity: 0.6; }
     <!-- Module Status Grid -->
     <div class="card" style="margin-bottom: 1.5rem;">
         <h3>Module Status</h3>
+        <div class="cat-run-bar" id="catRunBar">
+            <button class="cat-run-btn cat-run-criminal" onclick="runCategoryModules('criminal', this)">Run Criminal</button>
+            <button class="cat-run-btn cat-run-social" onclick="runCategoryModules('social', this)">Run Social</button>
+            <button class="cat-run-btn cat-run-financial" onclick="runCategoryModules('financial', this)">Run Financial</button>
+            <button class="cat-run-btn cat-run-digital" onclick="runCategoryModules('digital', this)">Run Digital</button>
+            <button class="cat-run-btn cat-run-location" onclick="runCategoryModules('location', this)">Run Location</button>
+            <button class="cat-run-btn cat-run-cyber" onclick="runCategoryModules('cyber', this)">Run Cyber</button>
+        </div>
         <div class="module-grid" id="moduleStatusGrid">
             <div style="color: var(--muted); font-size: 0.85rem; grid-column: 1/-1; text-align: center; padding: 0.5rem;">Loading modules...</div>
         </div>
@@ -390,6 +416,7 @@ tr.reviewed { opacity: 0.6; }
                         </td>
                         <td style="color: var(--dim); font-size: 0.82rem;">{{ finding.created_at.strftime('%m/%d %H:%M') }}</td>
                         <td style="white-space: nowrap;">
+                            <button class="note-icon-btn" onclick="event.stopPropagation(); toggleFindingNote('{{ finding.id }}', this)" title="Add note">&#128221;</button>
                             <button class="btn btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;" onclick="event.stopPropagation(); openSlideout('{{ finding.id }}')" title="Details">&#8942;</button>
                             <button class="btn btn-sm btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.72rem;" onclick="event.stopPropagation(); deleteFinding('{{ finding.id }}', this)" title="Delete">&#10005;</button>
                         </td>
@@ -1426,6 +1453,176 @@ function exportFilteredFindings(format) {
     a.click();
     URL.revokeObjectURL(url);
     showToast(visibleData.length + ' findings exported as ' + format.toUpperCase());
+}
+
+// ── Run category modules (only unrun ones) ────────────────────
+var _cachedApplicableModules = null;
+
+async function getApplicableModules() {
+    if (_cachedApplicableModules) return _cachedApplicableModules;
+    try {
+        var resp = await fetch(BASE + '/api/modules/for-target/' + TARGET_ID);
+        if (!resp.ok) return [];
+        var data = await resp.json();
+        _cachedApplicableModules = data.modules || [];
+        return _cachedApplicableModules;
+    } catch(e) { return []; }
+}
+
+async function runCategoryModules(category, btn) {
+    btn.disabled = true;
+    var origText = btn.textContent;
+    btn.textContent = 'Running...';
+
+    var allMods = await getApplicableModules();
+    var catMods = MODULE_CATEGORIES[category] || [];
+
+    // Find applicable modules in this category that haven't been run (gray tiles)
+    var grayTiles = document.querySelectorAll('#moduleStatusGrid .mod-tile-gray');
+    var grayNames = new Set();
+    grayTiles.forEach(function(tile) {
+        var nameDiv = tile.querySelector('.mod-tile-name');
+        if (nameDiv) {
+            var name = nameDiv.textContent.trim().toLowerCase().replace(/\s+/g, '_');
+            grayNames.add(name);
+        }
+    });
+
+    // Filter to modules in this category that are applicable and not yet run
+    var toRun = allMods.filter(function(mod) {
+        var inCat = catMods.some(function(cm) { return mod.name.indexOf(cm) !== -1 || cm.indexOf(mod.name) !== -1; });
+        if (!inCat) {
+            // Also check by classifyModule
+            inCat = classifyModule(mod.name) === category;
+        }
+        return inCat && grayNames.has(mod.name.toLowerCase());
+    });
+
+    if (!toRun.length) {
+        showToast('No unrun ' + category + ' modules to run');
+        btn.disabled = false;
+        btn.textContent = origText;
+        return;
+    }
+
+    var success = 0;
+    var failed = 0;
+    for (var i = 0; i < toRun.length; i++) {
+        btn.textContent = 'Running ' + (i + 1) + '/' + toRun.length + '...';
+        try {
+            var resp = await fetch(BASE + '/api/targets/' + TARGET_ID + '/run', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({module_name: toRun[i].name})
+            });
+            if (resp.ok) { success++; } else { failed++; }
+        } catch(e) { failed++; }
+    }
+
+    showToast(success + ' ' + category + ' module(s) completed' + (failed > 0 ? ', ' + failed + ' failed' : ''));
+    btn.disabled = false;
+    btn.textContent = origText;
+    setTimeout(function() { window.location.reload(); }, 1200);
+}
+
+// ── Finding notes (inline input) ──────────────────────────────
+function toggleFindingNote(findingId, btn) {
+    // Check if there's already an input open for this finding
+    var row = btn.closest('tr');
+    var existingInput = row.querySelector('.finding-note-input');
+    if (existingInput) {
+        existingInput.remove();
+        return;
+    }
+
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'finding-note-input';
+    input.placeholder = 'Add a note...';
+    input.style.marginLeft = '0.35rem';
+
+    var td = btn.closest('td');
+    td.appendChild(input);
+    input.focus();
+
+    function saveNote() {
+        var noteText = input.value.trim();
+        if (!noteText) { input.remove(); return; }
+
+        fetch(BASE + '/api/modules/notes', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({finding_id: findingId, content: noteText})
+        }).then(function(resp) {
+            if (resp.ok) {
+                showToast('Note saved');
+                btn.classList.add('has-note');
+                input.remove();
+            } else {
+                showToast('Failed to save note', 'error');
+            }
+        }).catch(function() {
+            showToast('Network error', 'error');
+        });
+    }
+
+    input.addEventListener('keydown', function(ev) {
+        if (ev.key === 'Enter') saveNote();
+        if (ev.key === 'Escape') input.remove();
+    });
+    input.addEventListener('blur', function() {
+        setTimeout(function() { if (document.contains(input)) saveNote(); }, 150);
+    });
+}
+
+// ── Export Full Profile (all target data + findings as JSON) ───
+async function exportFullProfile() {
+    showLoading();
+    var profileData = {
+        target: {
+            id: TARGET_ID,
+            label: "{{ target.label }}",
+            target_type: "{{ target.target_type }}",
+            full_name: "{{ target.full_name or '' }}",
+            email: "{{ target.email or '' }}",
+            phone: "{{ target.phone or '' }}",
+            city: "{{ target.city or '' }}",
+            state: "{{ target.state or '' }}"
+        },
+        investigation: {
+            case_number: "{{ investigation.case_number }}",
+            title: "{{ investigation.title }}"
+        },
+        findings: [],
+        module_runs: []
+    };
+
+    // Collect all findings from the table
+    try {
+        var resp = await fetch(BASE + '/api/findings/?target_id=' + TARGET_ID);
+        if (resp.ok) {
+            profileData.findings = await resp.json();
+        }
+    } catch(e) { /* skip */ }
+
+    // Collect module run info
+    try {
+        var resp2 = await fetch(BASE + '/api/targets/' + TARGET_ID + '/run-status');
+        if (resp2.ok) {
+            profileData.module_runs = await resp2.json();
+        }
+    } catch(e) { /* skip */ }
+
+    hideLoading();
+
+    var blob = new Blob([JSON.stringify(profileData, null, 2)], {type: 'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = '{{ target.label }}_full_profile.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Full profile exported as JSON');
 }
 
 // Init

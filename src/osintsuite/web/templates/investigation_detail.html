@@ -88,6 +88,29 @@
 .inv-meta-row .meta-value { color: var(--text); cursor: pointer; padding: 0.15rem 0.4rem; border-radius: 3px; transition: background 0.15s; text-align: right; }
 .inv-meta-row .meta-value:hover { background: var(--bg); }
 .inv-meta-edit { background: var(--bg); border: 1px solid var(--accent); border-radius: 4px; padding: 0.2rem 0.5rem; color: var(--text); font-size: 0.85rem; font-family: inherit; outline: none; width: 140px; text-align: right; }
+
+/* ── Module Run Queue Panel ─────────────────────────────────── */
+.run-queue-panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 1rem; margin-bottom: 1rem; }
+.run-queue-panel h4 { margin-bottom: 0.5rem; font-size: 0.95rem; }
+.run-queue-stats { display: flex; gap: 1.25rem; font-size: 0.85rem; margin-bottom: 0.75rem; }
+.rqs-item { display: flex; align-items: center; gap: 0.35rem; }
+.rqs-num { font-weight: 800; font-variant-numeric: tabular-nums; }
+.rqs-queued .rqs-num { color: var(--dim); }
+.rqs-running .rqs-num { color: var(--accent); }
+.rqs-done .rqs-num { color: var(--green); }
+.rqs-failed .rqs-num { color: var(--red); }
+.run-queue-current { font-size: 0.82rem; color: var(--dim); padding: 0.4rem 0; border-top: 1px solid var(--border); }
+
+/* ── Target Quick-Add Pills ─────────────────────────────────── */
+.target-quick-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.target-quick-pill { padding: 0.3rem 0.7rem; font-size: 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 20px; color: var(--dim); cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap; }
+.target-quick-pill:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Findings Confidence Breakdown ──────────────────────────── */
+.findings-breakdown { font-size: 0.72rem; margin-top: 0.15rem; display: flex; gap: 0.5rem; }
+.fb-high { color: var(--green); }
+.fb-med { color: var(--yellow); }
+.fb-low { color: var(--red); }
 </style>
 {% endblock %}
 
@@ -176,7 +199,7 @@
     </div>
 
     <!-- Action bar -->
-    <div style="display: flex; gap: 0.6rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+    <div style="display: flex; gap: 0.6rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
         <button class="btn btn-primary" onclick="document.getElementById('addTargetModal').style.display='flex'">+ Add Target</button>
         <button class="btn" onclick="runCorrelations()">Correlate Targets</button>
         <a class="btn" href="{{ request.scope.get('root_path', '') }}/investigation/{{ investigation.case_number }}/summary">Summary</a>
@@ -199,6 +222,28 @@
         </div>
         <button class="btn" onclick="exportInvestigation()">Export Case</button>
         <button class="btn btn-danger" onclick="deleteInvestigation()">Delete Case</button>
+    </div>
+    <div class="target-quick-pills" style="margin-bottom: 1.5rem;">
+        <span style="font-size:0.75rem;color:var(--muted);align-self:center;">Quick add:</span>
+        <button class="target-quick-pill" onclick="prefillTargetType('person')">+ Person</button>
+        <button class="target-quick-pill" onclick="prefillTargetType('domain')">+ Domain</button>
+        <button class="target-quick-pill" onclick="prefillTargetType('email')">+ Email</button>
+        <button class="target-quick-pill" onclick="prefillTargetType('phone')">+ Phone</button>
+        <button class="target-quick-pill" onclick="prefillTargetType('username')">+ Username</button>
+        <button class="target-quick-pill" onclick="prefillTargetType('ip')">+ IP</button>
+        <button class="target-quick-pill" onclick="prefillTargetType('organization')">+ Org</button>
+    </div>
+
+    <!-- Run Queue Panel (hidden, shown during queued bulk run) -->
+    <div class="run-queue-panel" id="runQueuePanel" style="display: none;">
+        <h4>Module Run Queue</h4>
+        <div class="run-queue-stats">
+            <div class="rqs-item rqs-queued"><span class="rqs-num" id="rqQueued">0</span> Queued</div>
+            <div class="rqs-item rqs-running"><span class="rqs-num" id="rqRunning">0</span> Running</div>
+            <div class="rqs-item rqs-done"><span class="rqs-num" id="rqDone">0</span> Done</div>
+            <div class="rqs-item rqs-failed"><span class="rqs-num" id="rqFailed">0</span> Failed</div>
+        </div>
+        <div class="run-queue-current" id="rqCurrent"></div>
     </div>
 
     <!-- Progress panel (hidden, shown during bulk run) -->
@@ -258,6 +303,19 @@
                     <div class="target-stats">
                         <span>{{ target.findings|length }} findings</span>
                         <span>{{ target.module_runs|length }} runs</span>
+                    </div>
+                    <div class="findings-breakdown" id="fb-{{ target.id }}">
+                        {% set th = [] %}{% set tm = [] %}{% set tl = [] %}
+                        {% for f in target.findings %}
+                            {% if (f.confidence or 0) > 70 %}{% if th.append(1) %}{% endif %}
+                            {% elif (f.confidence or 0) > 40 %}{% if tm.append(1) %}{% endif %}
+                            {% else %}{% if tl.append(1) %}{% endif %}{% endif %}
+                        {% endfor %}
+                        {% if target.findings|length > 0 %}
+                        <span class="fb-high">{{ th|length }} high</span>
+                        <span class="fb-med">{{ tm|length }} med</span>
+                        <span class="fb-low">{{ tl|length }} low</span>
+                        {% endif %}
                     </div>
                     <!-- Module category badges -->
                     <div class="module-cat-badges" id="catbadges-{{ target.id }}"></div>
@@ -1514,68 +1572,94 @@ runAllModules = async function(targetId, btn) {
     }
 };
 
-// Patch bulkRunAll to auto-refresh
+// Patch bulkRunAll to use queued module runner (one module at a time per target)
 var _origBulkRunAll = bulkRunAll;
 bulkRunAll = function(btn) {
-    confirmAction('Run all modules on ALL targets? This may take a while.', async function() {
-    btn.disabled = true;
-    btn.textContent = 'Running...';
-    var panel = document.getElementById('progressPanel');
-    var content = document.getElementById('progressContent');
-    panel.style.display = 'block';
-    content.replaceChildren();
-    TARGET_IDS.forEach(function(tid) {
-        var row = el('div', {class: 'progress-target', id: 'prog-' + tid});
-        var label = el('div', {class: 'prog-label', text: TARGET_LABELS[tid] || tid});
-        var barWrap = el('div', {class: 'prog-bar'});
-        var barFill = el('div', {class: 'prog-bar-fill', style: 'width: 0%;', id: 'progbar-' + tid});
-        barWrap.appendChild(barFill);
-        var txt = el('div', {class: 'prog-text', text: 'Pending...', id: 'progtxt-' + tid});
-        row.appendChild(label); row.appendChild(barWrap); row.appendChild(txt);
-        content.appendChild(row);
-    });
-    try {
-        var resp = await fetch(BASE + '/api/investigations/' + INV_ID + '/run-all', { method: 'POST' });
-        if (resp.ok) {
-            var result = await resp.json();
-            showToast(result.total_findings + ' findings from ' + result.targets_processed + ' targets');
-        } else {
-            showToast('Bulk run failed', 'error');
-            btn.disabled = false; btn.textContent = 'Run All Targets';
-            panel.style.display = 'none';
-            return;
+    confirmAction('Run all modules on ALL targets? Modules will be queued and processed one at a time.', async function() {
+        btn.disabled = true;
+        btn.textContent = 'Queuing...';
+
+        // Build the queue: collect all modules for each target
+        var queue = [];
+        for (var i = 0; i < TARGET_IDS.length; i++) {
+            var tid = TARGET_IDS[i];
+            var mods = _allModulesByTarget[tid] || [];
+            for (var j = 0; j < mods.length; j++) {
+                queue.push({ targetId: tid, moduleName: mods[j].name, targetLabel: TARGET_LABELS[tid] || tid });
+            }
         }
-    } catch(e) {
-        showToast('Network error', 'error');
-        btn.disabled = false; btn.textContent = 'Run All Targets';
-        panel.style.display = 'none';
-        return;
-    }
-    var pollInterval = setInterval(async function() {
-        var completed = 0;
-        for (var k = 0; k < TARGET_IDS.length; k++) {
-            var tid = TARGET_IDS[k];
+
+        if (!queue.length) {
+            // Fallback: fire the bulk endpoint if no module list is cached
             try {
-                var r2 = await fetch(BASE + '/api/targets/' + tid + '/run-status');
-                var runs = await r2.json();
-                var total = runs.length || 1;
-                var done = runs.filter(function(r) { return r.status === 'completed' || r.status === 'failed'; }).length;
-                var pct = Math.round((done / total) * 100);
-                var bar = document.getElementById('progbar-' + tid);
-                var txt = document.getElementById('progtxt-' + tid);
-                if (bar) bar.style.width = pct + '%';
-                if (txt) txt.textContent = done + '/' + total + ' modules';
-                if (done >= total) completed++;
-            } catch(e2) { completed++; }
-        }
-        if (completed >= TARGET_IDS.length) {
-            clearInterval(pollInterval);
+                var resp = await fetch(BASE + '/api/investigations/' + INV_ID + '/run-all', { method: 'POST' });
+                if (resp.ok) {
+                    var result = await resp.json();
+                    showToast(result.total_findings + ' findings from ' + result.targets_processed + ' targets');
+                } else { showToast('Bulk run failed', 'error'); }
+            } catch(e) { showToast('Network error', 'error'); }
             btn.disabled = false;
             btn.textContent = 'Run All Targets';
-            showToast('All targets complete.');
             refreshAfterModuleRun();
+            return;
         }
-    }, 2000);
+
+        // Show the queue panel
+        var qPanel = document.getElementById('runQueuePanel');
+        qPanel.style.display = '';
+        var totalQueued = queue.length;
+        var doneCount = 0;
+        var failedCount = 0;
+        var runningCount = 0;
+
+        function updateQueueUI(currentLabel) {
+            document.getElementById('rqQueued').textContent = totalQueued - doneCount - failedCount - runningCount;
+            document.getElementById('rqRunning').textContent = runningCount;
+            document.getElementById('rqDone').textContent = doneCount;
+            document.getElementById('rqFailed').textContent = failedCount;
+            var currentEl = document.getElementById('rqCurrent');
+            if (currentLabel) {
+                currentEl.textContent = 'Running: ' + currentLabel;
+            } else {
+                currentEl.textContent = 'Complete';
+            }
+        }
+
+        btn.textContent = 'Running 0/' + totalQueued + '...';
+        updateQueueUI('Starting...');
+
+        // Process queue one at a time
+        for (var q = 0; q < queue.length; q++) {
+            var item = queue[q];
+            runningCount = 1;
+            var label = item.targetLabel + ' / ' + item.moduleName.replace(/_/g, ' ');
+            updateQueueUI(label);
+            btn.textContent = 'Running ' + (doneCount + failedCount + 1) + '/' + totalQueued + '...';
+
+            try {
+                var r = await fetch(BASE + '/api/targets/' + item.targetId + '/run', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({module_name: item.moduleName})
+                });
+                runningCount = 0;
+                if (r.ok) {
+                    doneCount++;
+                } else {
+                    failedCount++;
+                }
+            } catch(e) {
+                runningCount = 0;
+                failedCount++;
+            }
+            updateQueueUI(q < queue.length - 1 ? 'Next...' : null);
+        }
+
+        updateQueueUI(null);
+        btn.disabled = false;
+        btn.textContent = 'Run All Targets';
+        showToast(doneCount + ' modules completed, ' + failedCount + ' failed');
+        refreshAfterModuleRun();
     });
 };
 

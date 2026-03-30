@@ -16,6 +16,8 @@ from osintsuite.web.schemas import ModuleRunRequest, TargetCreate, TargetRespons
 
 router = APIRouter()
 
+VALID_TARGET_TYPES = {"person", "domain", "email", "phone", "username", "ip", "organization"}
+
 
 class BatchImportRequest(BaseModel):
     investigation_id: uuid.UUID
@@ -53,6 +55,15 @@ async def batch_import_targets(data: BatchImportRequest, repo: Repository = Depe
 
 @router.post("/", response_model=TargetResponse)
 async def create_target(data: TargetCreate, repo: Repository = Depends(get_repo)):
+    # Pydantic already validates target_type via pattern and label via min_length,
+    # but add explicit checks for defense-in-depth
+    if not data.label or not data.label.strip():
+        raise HTTPException(status_code=400, detail="Label must not be empty")
+    if data.target_type not in VALID_TARGET_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid target type '{data.target_type}'. Must be one of: {', '.join(sorted(VALID_TARGET_TYPES))}",
+        )
     target = await repo.add_target(
         investigation_id=data.investigation_id,
         target_type=data.target_type,
@@ -85,6 +96,68 @@ async def get_target(target_id: uuid.UUID, repo: Repository = Depends(get_repo))
     return TargetResponse.model_validate(target)
 
 
+@router.get("/{target_id}/summary")
+async def get_target_summary(target_id: uuid.UUID, repo: Repository = Depends(get_repo)):
+    """Return target info + finding count + module run count + last run time + top 3 findings."""
+    from sqlalchemy import select
+    from osintsuite.db.models import ModuleRun
+
+    target = await repo.get_target(target_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+
+    findings = await repo.get_findings_by_target(target_id)
+
+    # Module runs
+    q = (
+        select(ModuleRun)
+        .where(ModuleRun.target_id == target_id)
+        .order_by(ModuleRun.started_at.desc())
+    )
+    result = await repo.session.execute(q)
+    runs = result.scalars().all()
+
+    last_run_time = None
+    if runs:
+        latest = runs[0]
+        last_run_time = (latest.completed_at or latest.started_at)
+        if last_run_time:
+            last_run_time = last_run_time.isoformat()
+
+    # Top 3 findings by confidence (highest first)
+    sorted_findings = sorted(
+        findings,
+        key=lambda f: f.confidence if f.confidence is not None else -1,
+        reverse=True,
+    )
+    top_findings = [
+        {
+            "id": str(f.id),
+            "module_name": f.module_name,
+            "title": f.title,
+            "confidence": f.confidence,
+            "source": f.source,
+        }
+        for f in sorted_findings[:3]
+    ]
+
+    return {
+        "target": {
+            "id": str(target.id),
+            "label": target.label,
+            "target_type": target.target_type,
+            "full_name": target.full_name,
+            "email": target.email,
+            "phone": target.phone,
+            "created_at": target.created_at.isoformat(),
+        },
+        "finding_count": len(findings),
+        "module_run_count": len(runs),
+        "last_run_time": last_run_time,
+        "top_findings": top_findings,
+    }
+
+
 @router.post("/{target_id}/run")
 async def run_modules(
     target_id: uuid.UUID,
@@ -107,6 +180,11 @@ async def run_modules(
             }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Module execution failed", "message": str(e)},
+        )
 
 
 @router.get("/search/{query}", response_model=list[TargetResponse])
@@ -127,6 +205,9 @@ async def update_target(
     fields = data.model_dump(exclude_none=True)
     if not fields:
         raise HTTPException(status_code=400, detail="No fields to update")
+    # Validate label is not empty whitespace if provided
+    if "label" in fields and not fields["label"].strip():
+        raise HTTPException(status_code=400, detail="Label must not be empty")
     await repo.update_target(target_id, **fields)
     return {"status": "updated"}
 

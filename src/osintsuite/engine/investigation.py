@@ -138,6 +138,18 @@ from osintsuite.modules.domain_typosquat import DomainTyposquatModule
 from osintsuite.modules.phone_reputation import PhoneReputationModule
 from osintsuite.modules.favicon_hash import FaviconHashModule
 
+# v0.7 — Advanced Reconnaissance
+from osintsuite.modules.dns_mx_spf import DnsMxSpfModule
+from osintsuite.modules.cloud_exposure import CloudExposureModule
+from osintsuite.modules.api_discovery import ApiDiscoveryModule
+from osintsuite.modules.wayback_diff import WaybackDiffModule
+from osintsuite.modules.leaked_credentials import LeakedCredentialsModule
+from osintsuite.modules.org_chart import OrgChartModule
+from osintsuite.modules.ip_neighbors import IpNeighborsModule
+from osintsuite.modules.document_search import DocumentSearchModule
+from osintsuite.modules.code_repository import CodeRepositoryModule
+from osintsuite.modules.paste_monitor import PasteMonitorModule
+
 if TYPE_CHECKING:
     pass
 
@@ -293,6 +305,18 @@ class InvestigationEngine:
         self.modules["domain_typosquat"] = DomainTyposquatModule(client, limiter)
         self.modules["phone_reputation"] = PhoneReputationModule(client, limiter)
         self.modules["favicon_hash"] = FaviconHashModule(client, limiter)
+
+        # v0.7 — Advanced Reconnaissance
+        self.modules["dns_mx_spf"] = DnsMxSpfModule(client, limiter)
+        self.modules["cloud_exposure"] = CloudExposureModule(client, limiter)
+        self.modules["api_discovery"] = ApiDiscoveryModule(client, limiter)
+        self.modules["wayback_diff"] = WaybackDiffModule(client, limiter)
+        self.modules["leaked_credentials"] = LeakedCredentialsModule(client, limiter)
+        self.modules["org_chart"] = OrgChartModule(client, limiter)
+        self.modules["ip_neighbors"] = IpNeighborsModule(client, limiter)
+        self.modules["document_search"] = DocumentSearchModule(client, limiter)
+        self.modules["code_repository"] = CodeRepositoryModule(client, limiter)
+        self.modules["paste_monitor"] = PasteMonitorModule(client, limiter)
 
     def list_modules(self) -> dict[str, str]:
         """Return module names and descriptions."""
