@@ -111,7 +111,8 @@
 {% block content %}
 <div class="dashboard">
     <h1 style="margin-bottom: 0.25rem;">Investigation Dashboard</h1>
-    <p style="color:var(--dim);font-size:0.9rem;margin-bottom:1.5rem;" id="dashSubtitle">85 modules ready across {{ investigations|length }} active investigations</p>
+    <p style="color:var(--dim);font-size:0.9rem;margin-bottom:0.5rem;" id="dashSubtitle">105 modules ready across {{ investigations|length }} active investigations</p>
+    <p class="section-desc" style="margin-bottom:1.5rem;">Manage investigations, run intelligence modules against targets, and generate reports. Use keyboard shortcuts (press <kbd class="kbd">?</kbd> for help) to navigate faster.</p>
 
     <div class="stats-grid">
         <div class="stat-card" style="border-left: 4px solid var(--accent);cursor:pointer;" onclick="setStatusFilter('all', document.querySelector('.filter-pill[data-status=all]'))">
@@ -120,6 +121,7 @@
                 <div>
                     <div class="stat-number" data-count="{{ stats.total_cases }}">0</div>
                     <div class="stat-label">Total Cases <span class="kbd">1</span></div>
+                    <div class="status-explanation">All investigations in the system</div>
                 </div>
             </div>
         </div>
@@ -129,6 +131,7 @@
                 <div>
                     <div class="stat-number" data-count="{{ stats.open_cases }}">0</div>
                     <div class="stat-label">Open <span class="kbd">2</span></div>
+                    <div class="status-explanation">Cases awaiting initial analysis</div>
                 </div>
             </div>
         </div>
@@ -138,6 +141,7 @@
                 <div>
                     <div class="stat-number" data-count="{{ stats.active_cases }}">0</div>
                     <div class="stat-label">Active <span class="kbd">3</span></div>
+                    <div class="status-explanation">Currently being investigated</div>
                 </div>
             </div>
         </div>
@@ -147,6 +151,7 @@
                 <div>
                     <div class="stat-number" data-count="{{ stats.closed_cases }}">0</div>
                     <div class="stat-label">Closed <span class="kbd">4</span></div>
+                    <div class="status-explanation">Completed investigations</div>
                 </div>
             </div>
         </div>
@@ -163,7 +168,8 @@
 
     <!-- Activity Timeline -->
     <div class="section" id="activitySection" style="display:none;">
-        <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:0.75rem;">Recent Activity</h2>
+        <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:0.25rem;">Recent Activity</h2>
+        <p class="section-desc">Latest actions across all investigations -- module runs, case updates, and new findings.</p>
         <div class="activity-timeline" id="activityTimeline"></div>
     </div>
 
@@ -215,18 +221,22 @@
             <div class="kanban-board">
                 <div class="kanban-col" data-status="open">
                     <div class="kanban-col-header">Open <span class="col-count" id="kanban-count-open">0</span></div>
+                    <div class="status-explanation" style="padding:0 0.75rem 0.25rem;">New cases pending assignment</div>
                     <div class="kanban-col-body" id="kanban-open"></div>
                 </div>
                 <div class="kanban-col" data-status="active">
                     <div class="kanban-col-header">Active <span class="col-count" id="kanban-count-active">0</span></div>
+                    <div class="status-explanation" style="padding:0 0.75rem 0.25rem;">Under active investigation</div>
                     <div class="kanban-col-body" id="kanban-active"></div>
                 </div>
                 <div class="kanban-col" data-status="closed">
                     <div class="kanban-col-header">Closed <span class="col-count" id="kanban-count-closed">0</span></div>
+                    <div class="status-explanation" style="padding:0 0.75rem 0.25rem;">Investigation complete</div>
                     <div class="kanban-col-body" id="kanban-closed"></div>
                 </div>
                 <div class="kanban-col" data-status="archived">
                     <div class="kanban-col-header">Archived <span class="col-count" id="kanban-count-archived">0</span></div>
+                    <div class="status-explanation" style="padding:0 0.75rem 0.25rem;">Retained for reference</div>
                     <div class="kanban-col-body" id="kanban-archived"></div>
                 </div>
             </div>
@@ -247,14 +257,14 @@
             <thead>
                 <tr>
                     <th style="width:2rem;"><input type="checkbox" id="selectAllCases" onchange="toggleSelectAllCases(this)"></th>
-                    <th>Case #</th>
-                    <th>Title</th>
-                    <th>Status</th>
-                    <th>Priority</th>
-                    <th>Targets</th>
-                    <th>Findings</th>
-                    <th>Created</th>
-                    <th>Age</th>
+                    <th class="tooltip" data-tip="Unique case identifier">Case #</th>
+                    <th class="tooltip" data-tip="Investigation title or subject name">Title</th>
+                    <th class="tooltip" data-tip="Current case status: open, active, closed, or archived">Status</th>
+                    <th class="tooltip" data-tip="Investigation urgency: critical, high, medium, or low">Priority</th>
+                    <th class="tooltip" data-tip="Number of people, domains, or entities under investigation">Targets</th>
+                    <th class="tooltip" data-tip="Total intelligence findings gathered across all modules">Findings</th>
+                    <th class="tooltip" data-tip="Date the investigation was created">Created</th>
+                    <th class="tooltip" data-tip="Days since investigation was created">Age</th>
                     <th></th>
                 </tr>
             </thead>

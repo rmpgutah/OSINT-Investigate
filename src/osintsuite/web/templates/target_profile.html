@@ -272,6 +272,12 @@ tr.reviewed { opacity: 0.6; }
     <!-- Module Status Grid -->
     <div class="card" style="margin-bottom: 1.5rem;">
         <h3>Module Status</h3>
+        <div class="section-desc" style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:0.75rem;">
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(34,197,94,0.4);border:1px solid #22c55e;vertical-align:middle;margin-right:0.3rem;"></span> Ran with findings</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(245,158,11,0.4);border:1px solid #f59e0b;vertical-align:middle;margin-right:0.3rem;"></span> Ran, no findings</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(239,68,68,0.4);border:1px solid #ef4444;vertical-align:middle;margin-right:0.3rem;"></span> Failed</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--bg);border:1px solid var(--border);vertical-align:middle;margin-right:0.3rem;"></span> Not yet run (click to run)</span>
+        </div>
         <div class="cat-run-bar" id="catRunBar">
             <button class="cat-run-btn cat-run-criminal" onclick="runCategoryModules('criminal', this)">Run Criminal</button>
             <button class="cat-run-btn cat-run-social" onclick="runCategoryModules('social', this)">Run Social</button>
@@ -303,7 +309,13 @@ tr.reviewed { opacity: 0.6; }
     {% endif %}
 
     <div class="section">
-        <h2 style="margin-bottom: 1rem;">Findings</h2>
+        <h2 style="margin-bottom: 0.5rem;">Findings</h2>
+        <div class="section-desc" style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:0.75rem;">
+            Confidence:
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);vertical-align:middle;margin-right:0.25rem;"></span> High (71-100%)</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--yellow);vertical-align:middle;margin-right:0.25rem;"></span> Medium (41-70%)</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--red);vertical-align:middle;margin-right:0.25rem;"></span> Low (0-40%)</span>
+        </div>
 
         {% if findings_by_module %}
         <!-- 77. Bulk action bar -->
@@ -322,6 +334,7 @@ tr.reviewed { opacity: 0.6; }
         </div>
 
         <!-- Filter pills (module filter) -->
+        <p class="section-desc" style="margin-bottom:0.5rem;">Filter findings by module. Click multiple pills to combine filters. Use the search box to find specific text.</p>
         <div class="filter-pills" id="filterPills">
             {% for module_name in findings_by_module %}
             <button class="filter-pill" data-module="{{ module_name }}" onclick="toggleModulePill(this)">
@@ -717,6 +730,64 @@ async function openSlideout(findingId) {
     await loadSlideoutContent(findingId);
 }
 
+const FINDING_TYPE_DESC = {
+    'criminal_record': 'Court or criminal justice system record',
+    'warrant_result': 'Active or historical warrant information',
+    'arrest_record': 'Arrest or booking record from law enforcement',
+    'inmate_record': 'Jail or prison incarceration record',
+    'sex_offender': 'Sex offender registry match',
+    'parole_record': 'Parole or probation supervision record',
+    'social_profile': 'Social media account or profile',
+    'social_profile_deep': 'Social media account on newer platforms',
+    'forum_post': 'Forum or message board posting',
+    'review_profile': 'Review site account (Yelp, Google, etc.)',
+    'dating_profile': 'Dating platform profile match',
+    'breach_record': 'Data breach exposure for this email/domain',
+    'paste_result': 'Paste site mention (Pastebin, etc.)',
+    'dark_web_mention': 'Dark web marketplace or forum mention',
+    'dns_record_history': 'Historical DNS resolution changes',
+    'whois_record': 'Domain WHOIS registration data',
+    'ssl_certificate': 'SSL/TLS certificate information',
+    'code_repository': 'Code repository or commit history',
+    'property_record': 'Real estate ownership or deed record',
+    'vehicle_record': 'Vehicle registration or title record',
+    'employment_record': 'Employment or corporate officer position',
+    'education_record': 'Education institution enrollment or degree',
+    'voter_registration': 'Voter registration public record',
+    'financial_lien': 'Financial lien or judgment filing',
+    'political_donation': 'Political campaign contribution record',
+    'business_filing': 'Business entity or corporate filing',
+    'phone_lookup': 'Phone number owner or carrier lookup',
+    'email_verification': 'Email address validity and provider info',
+    'geolocation': 'Geographic location or address data',
+    'ip_geolocation': 'IP address geographic location',
+    'username_match': 'Username found on another platform',
+    'alias_match': 'Potential alias or alternate identity',
+    'military_record': 'Military service or veteran record',
+    'professional_license': 'Professional or occupational license'
+};
+
+const DATA_FIELD_DESC = {
+    'url': 'Source URL where this information was found',
+    'snippet': 'Text excerpt from the source',
+    'jurisdiction': 'Geographic area of legal authority',
+    'confidence': 'Algorithmic certainty score (0-100)',
+    'source_url': 'Original data source link',
+    'date_filed': 'Date the record was filed or created',
+    'case_number': 'Court or administrative case number',
+    'status': 'Current status of the record',
+    'address': 'Physical address associated with the finding',
+    'phone': 'Phone number found in the record',
+    'email': 'Email address found in the record',
+    'name': 'Name as it appears in the source record',
+    'platform': 'Website or service where data was found',
+    'username': 'Username or handle on the platform',
+    'breach_date': 'Date the data breach occurred',
+    'breach_name': 'Name of the data breach',
+    'latitude': 'Geographic latitude coordinate',
+    'longitude': 'Geographic longitude coordinate'
+};
+
 async function loadSlideoutContent(findingId) {
     const title = document.getElementById('slideoutTitle');
     const body = document.getElementById('slideoutBody');
@@ -730,11 +801,17 @@ async function loadSlideoutContent(findingId) {
         body.replaceChildren();
 
         // Source badge
-        const badges = el('div', {style: 'margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;'});
+        const badges = el('div', {style: 'margin-bottom: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;'});
         badges.appendChild(el('span', {class: 'badge badge-type', text: (f.module_name || '').replace(/_/g, ' ')}));
         badges.appendChild(el('span', {class: 'badge', text: f.source || ''}));
         if (f.finding_type) badges.appendChild(el('span', {class: 'badge', text: f.finding_type}));
         body.appendChild(badges);
+
+        // Finding type description
+        if (f.finding_type && FINDING_TYPE_DESC[f.finding_type]) {
+            var ftDesc = el('div', {class: 'status-explanation', style: 'margin-bottom: 1rem;', text: FINDING_TYPE_DESC[f.finding_type]});
+            body.appendChild(ftDesc);
+        }
 
         // Confidence gauge
         if (f.confidence !== null && f.confidence !== undefined) {
@@ -802,6 +879,11 @@ async function loadSlideoutContent(findingId) {
                 var tr = document.createElement('tr');
                 var tdKey = document.createElement('td');
                 tdKey.textContent = key;
+                if (DATA_FIELD_DESC[key]) {
+                    tdKey.classList.add('tooltip');
+                    tdKey.setAttribute('data-tip', DATA_FIELD_DESC[key]);
+                    tdKey.style.cursor = 'help';
+                }
                 tr.appendChild(tdKey);
                 var tdVal = document.createElement('td');
                 if (typeof val === 'string' && (val.startsWith('http://') || val.startsWith('https://'))) {

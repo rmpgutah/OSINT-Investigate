@@ -267,6 +267,7 @@
         <button class="tab-btn" onclick="switchMainTab('reports', this)">Reports</button>
         <button class="tab-btn" onclick="switchMainTab('notes', this)">Notes</button>
     </div>
+    <div class="section-desc" id="tabDescription" style="margin-top:0.5rem;">People, organizations, domains, and other entities being investigated. Add targets and run OSINT modules to gather intelligence.</div>
 
     <!-- Targets Tab -->
     <div class="tab-content active" id="maintab-targets">
@@ -376,7 +377,8 @@
     <!-- Findings Tab -->
     <div class="tab-content" id="maintab-findings">
         <div class="section">
-            <h2 style="margin-bottom: 1rem;">All Findings</h2>
+            <h2 style="margin-bottom: 0.5rem;">All Findings</h2>
+            <p class="section-desc">Confidence: 0-40 = Low (unverified), 41-70 = Medium (likely), 71-100 = High (verified from authoritative source).</p>
             <div id="findingsLoading" style="text-align: center; padding: 2rem; color: var(--muted);">Click to load findings...</div>
             <table class="data-table" id="allFindingsTable" style="display: none;">
                 <thead>
@@ -475,6 +477,7 @@
 <div id="addTargetModal" class="modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
     <div class="modal-content">
         <h3>Add Target</h3>
+        <p class="section-desc" style="margin-top:-0.5rem;">Choose the target type that best describes your subject. Each type determines which of the 105 OSINT modules will be run.</p>
         <form id="addTargetForm" onsubmit="addTarget(event)">
             <div class="form-group">
                 <label>Type</label>
@@ -578,11 +581,24 @@ let graphLoaded = false;
 let timelineLoaded = false;
 let notesLoaded = false;
 
+const TAB_DESCRIPTIONS = {
+    targets: 'People, organizations, domains, and other entities being investigated. Add targets and run OSINT modules to gather intelligence.',
+    findings: 'All intelligence gathered across all targets. Filter by module, confidence, or search by keyword.',
+    graph: 'Visual network showing connections between targets based on shared data points (emails, phones, addresses).',
+    timeline: 'Chronological history of all investigation activity -- when targets were added, modules run, and findings discovered.',
+    reports: 'Generate exportable reports in CSV, HTML, JSON, or PDF format for case documentation.',
+    notes: 'Free-form notes and annotations attached to this investigation.'
+};
+
 function switchMainTab(name, btn) {
     document.querySelectorAll('#mainTabNav .tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.investigation-detail > .tab-content').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('maintab-' + name).classList.add('active');
+
+    // Update tab description
+    var descEl = document.getElementById('tabDescription');
+    if (descEl && TAB_DESCRIPTIONS[name]) descEl.textContent = TAB_DESCRIPTIONS[name];
 
     // Save active tab to sessionStorage
     try { sessionStorage.setItem('inv_active_tab_' + INV_ID, name); } catch(e) {}
@@ -1338,8 +1354,20 @@ function loadModuleCategoryBadges(targetId, modules) {
         categoriesPresent[cat]++;
     });
 
+    var CAT_TOOLTIPS = {
+        criminal: 'Court records, warrants, arrests, inmate records, parole/probation',
+        social: 'Social media profiles, forum posts, reviews, dating profiles',
+        financial: 'Bank liens, judgments, FINRA records, political donations',
+        digital: 'Email breaches, dark web mentions, paste sites, code repositories',
+        location: 'Geolocation, addresses, aerial views, cell towers, weather',
+        identity: 'Aliases, voter registration, education, employment, military',
+        communication: 'Phone records, messaging apps, VOIP services',
+        network: 'DNS, WHOIS, IP lookups, SSL certificates, infrastructure'
+    };
     for (var cat in categoriesPresent) {
-        var badge = el('span', {class: 'module-cat-badge cat-' + cat, text: CAT_LABELS[cat] + ' (' + categoriesPresent[cat] + ')'});
+        var badge = el('span', {class: 'module-cat-badge cat-' + cat + ' tooltip'});
+        badge.textContent = (CAT_LABELS[cat] || cat) + ' (' + categoriesPresent[cat] + ')';
+        badge.setAttribute('data-tip', CAT_TOOLTIPS[cat] || '');
         container.appendChild(badge);
     }
 }

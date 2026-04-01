@@ -188,6 +188,18 @@
     /* Empty state */
     .empty-state { text-align: center; padding: 4rem 2rem; color: var(--muted); background: var(--card); border-radius: var(--r); border: 1px dashed var(--border); }
     .empty-state p { font-size: 1rem; }
+    .empty-state-title { font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem; }
+    .empty-state-desc { font-size: 0.88rem; color: var(--dim); line-height: 1.6; max-width: 400px; margin: 0 auto; }
+
+    /* Section descriptions */
+    .section-desc { color: var(--dim); font-size: 0.85rem; margin-bottom: 1rem; line-height: 1.5; }
+
+    /* Help icon component */
+    .help-icon { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border); color: var(--muted); font-size: 10px; cursor: help; margin-left: 0.4rem; }
+    .help-icon:hover { color: var(--gold); border-color: var(--gold); }
+
+    /* Status explanations */
+    .status-explanation { font-size: 0.78rem; color: var(--muted); font-style: italic; margin-top: 0.2rem; }
 
     /* Footer */
     .footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--border); margin-top: 3rem; }
@@ -321,6 +333,7 @@
     .sidebar-nav a { display: flex; align-items: center; gap: 0.7rem; padding: 0.55rem 1.25rem; color: var(--dim); font-size: 0.9rem; text-decoration: none; transition: all 0.15s; border-left: 3px solid transparent; }
     .sidebar-nav a:hover { color: var(--text); background: var(--hover); text-decoration: none; }
     .sidebar-nav a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(26,90,158,0.08); }
+    .sidebar-nav a.tooltip::after { bottom: auto; left: calc(100% + 10px); top: 50%; transform: translateY(-50%); white-space: nowrap; }
     .sidebar-nav .nav-section { padding: 0.75rem 1.25rem 0.35rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
     .sidebar-footer { padding: 0.75rem 1.25rem; border-top: 1px solid var(--border); }
 
@@ -616,11 +629,11 @@
         </div>
         <nav class="sidebar-nav">
             <div class="nav-section">Navigation</div>
-            <a href="{{ request.scope.get('root_path', '') }}/" id="nav-dashboard">
+            <a href="{{ request.scope.get('root_path', '') }}/" id="nav-dashboard" class="tooltip" data-tip="Overview of all investigations and recent activity">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
                 Dashboard
             </a>
-            <a href="{{ request.scope.get('root_path', '') }}/api/investigations" target="_blank" id="nav-api">
+            <a href="{{ request.scope.get('root_path', '') }}/api/investigations" target="_blank" id="nav-api" class="tooltip" data-tip="REST API documentation and endpoints">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
                 API
             </a>
