@@ -6,8 +6,8 @@ import logging
 from typing import Optional
 
 import jwt
-from fastapi import HTTPException, Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi import Request, Response
+from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from osintsuite.config import get_settings
@@ -103,7 +103,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
             # Check if this is an API request or browser request
             accept = request.headers.get("Accept", "")
             if "application/json" in accept or path.startswith("/api/"):
-                raise HTTPException(status_code=401, detail="Authentication required")
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Authentication required"},
+                )
 
             # Browser request — redirect to login
             login_url = f"{root_path}/login"
