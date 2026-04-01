@@ -178,7 +178,7 @@
             {% for f in top_findings %}
             <div class="key-finding-card" style="border-left-color: {% if f.confidence > 70 %}#22c55e{% elif f.confidence > 40 %}#f59e0b{% else %}#ef4444{% endif %};">
                 <div class="kf-badge">
-                    <span class="badge badge-type" style="font-size: 0.7rem;">{{ f.module_name.replace('_', ' ') }}</span>
+                    <span class="badge badge-type" style="font-size: 0.7rem;">{{ f.module_name.replace('_', ' ').title() }}</span>
                 </div>
                 <div class="kf-body">
                     <div class="kf-title">{{ f.title or f.finding_type or '\u2014' }}</div>
@@ -230,6 +230,13 @@
                 <div class="risk-gauge-inner" style="color: {% if risk_score > 70 %}#ef4444{% elif risk_score > 30 %}#f59e0b{% else %}#22c55e{% endif %};">{{ risk_score }}</div>
             </div>
             <div class="stat-label" style="margin-top: 0.5rem;">Risk Score</div>
+            <div style="font-size: 0.82rem; font-weight: 600; margin-top: 0.25rem; color: {% if risk_score <= 25 %}#22c55e{% elif risk_score <= 50 %}#f59e0b{% elif risk_score <= 75 %}#f97316{% else %}#ef4444{% endif %};">
+                {% if risk_score <= 25 %}Low Risk &mdash; No significant concerns identified
+                {% elif risk_score <= 50 %}Moderate Risk &mdash; Some findings warrant attention
+                {% elif risk_score <= 75 %}High Risk &mdash; Multiple concerning findings detected
+                {% else %}Critical Risk &mdash; Immediate review recommended
+                {% endif %}
+            </div>
             <div class="status-explanation" style="max-width:200px;text-align:center;font-style:normal;">
                 Risk Score combines flagged findings (&times;5), high-confidence findings (&times;2), and total findings (&times;0.5), capped at 100. Higher scores indicate more concerning intelligence.
             </div>
@@ -320,12 +327,14 @@
             <tbody>
                 {% for f in flagged_findings %}
                 <tr>
-                    <td><span class="badge badge-type" style="font-size: 0.7rem;">{{ f.module_name.replace('_', ' ') }}</span></td>
+                    <td><span class="badge badge-type" style="font-size: 0.7rem;">{{ f.module_name.replace('_', ' ').title() }}</span></td>
                     <td><span class="badge">{{ f.source }}</span></td>
                     <td>{{ f.title or '\u2014' }}</td>
                     <td>
                         {% if f.confidence is not none %}
-                        <span class="confidence confidence-{{ 'high' if f.confidence > 70 else 'medium' if f.confidence > 40 else 'low' }}">{{ f.confidence }}%</span>
+                        <span class="confidence confidence-{{ 'high' if f.confidence > 70 else 'medium' if f.confidence > 40 else 'low' }}" style="white-space:nowrap;">
+                            {% if f.confidence >= 90 %}Very High{% elif f.confidence > 70 %}High{% elif f.confidence > 40 %}Medium{% elif f.confidence >= 20 %}Low{% else %}Very Low{% endif %} ({{ f.confidence }}%)
+                        </span>
                         {% else %}
                         <span style="color: var(--muted);">&mdash;</span>
                         {% endif %}
@@ -344,13 +353,16 @@
         <h2 style="margin-bottom: 0.25rem;">Evidence Chain</h2>
         <p class="section-desc">Evidence chain traces how flagged findings connect from target through module to result. Review flagged items for investigation-critical intelligence.</p>
         {% for f in flagged_findings_chain %}
-        <div class="card" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; margin-bottom: 0.5rem;">
+        <div class="card" style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem 1rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
             <span class="badge badge-type">{{ f.target_label }}</span>
             <span style="color: var(--muted);">&rarr;</span>
-            <span class="badge" style="background: var(--bg2);">{{ f.module_name }}</span>
-            <span style="color: var(--muted);">&rarr;</span>
-            <span style="flex: 1;">{{ f.title or f.finding_type }}</span>
-            <span class="confidence confidence-{{ 'high' if f.confidence > 70 else 'medium' if f.confidence > 40 else 'low' }}">{{ f.confidence }}%</span>
+            <span style="flex: 1; line-height: 1.5;">
+                <strong>{{ f.module_name.replace('_', ' ').title() }}</strong> module found
+                {% if f.title %}a {{ f.title|lower }}{% elif f.finding_type %}a {{ f.finding_type.replace('_', ' ') }}{% else %}a result{% endif %}
+                <span style="color: {% if f.confidence > 70 %}#22c55e{% elif f.confidence > 40 %}#f59e0b{% else %}#ef4444{% endif %}; font-weight: 600;">
+                    ({% if f.confidence >= 90 %}Very High{% elif f.confidence > 70 %}High{% elif f.confidence > 40 %}Medium{% elif f.confidence >= 20 %}Low{% else %}Very Low{% endif %} confidence, {{ f.confidence }}%)
+                </span>
+            </span>
         </div>
         {% endfor %}
     </div>
@@ -377,6 +389,47 @@
 <script>
 const INV_ID = "{{ investigation.id }}";
 const CASE_NUM = "{{ investigation.case_number }}";
+
+// ── Human-readable module names for charts ──────────────────────
+const MODULE_DISPLAY_NAMES = {
+    'person_search': 'Person Search', 'criminal_records': 'Criminal Records',
+    'warrant_search': 'Warrant Search', 'arrest_records': 'Arrest Records',
+    'inmate_search': 'Inmate Lookup', 'parole_probation': 'Parole & Probation',
+    'education_history': 'Education History', 'employment_history': 'Employment History',
+    'military_records': 'Military Records', 'marriage_divorce': 'Marriage & Divorce',
+    'financial_records': 'Financial Records', 'domain_recon': 'Domain Reconnaissance',
+    'email_intel': 'Email Intelligence', 'phone_lookup': 'Phone Lookup',
+    'social_media': 'Social Media', 'web_scraper': 'Web Content',
+    'ip_forensics': 'IP Forensics', 'ssl_certificate': 'SSL Certificates',
+    'port_scan': 'Port Scan', 'malware_check': 'Malware Check',
+    'data_breach_check': 'Data Breaches', 'reputation_score': 'Reputation Score',
+    'dark_web': 'Dark Web', 'news_monitor': 'News Monitor',
+    'voter_registration': 'Voter Registration', 'lawsuit_search': 'Lawsuits',
+    'sanctions_check': 'Sanctions Check', 'google_dork': 'Google Dorking',
+    'subdomain_enum': 'Subdomains', 'tech_stack': 'Technology Stack',
+    'dns_history': 'DNS History', 'geolocation': 'Geolocation',
+    'life_event_timeline': 'Life Events', 'court_records': 'Court Records',
+    'sex_offender': 'Sex Offender Registry', 'incarceration': 'Incarceration Records',
+    'criminal_history': 'Criminal History', 'social_profiles': 'Social Profiles',
+    'username_search': 'Username Search', 'review_search': 'Review Sites',
+    'associates_network': 'Associates Network', 'dating_profiles': 'Dating Profiles',
+    'forum_search': 'Forum Posts', 'bankruptcy': 'Bankruptcy Records',
+    'property_records': 'Property Records', 'business_records': 'Business Records',
+    'corporate_filings': 'Corporate Filings', 'tax_liens': 'Tax Liens',
+    'email_deep': 'Deep Email Analysis', 'github_intel': 'GitHub Intelligence',
+    'paste_search': 'Paste Sites', 'data_breach': 'Data Breaches',
+    'username_enum': 'Username Enumeration', 'website_content': 'Website Content',
+    'dns_recon': 'DNS Reconnaissance', 'whois_lookup': 'WHOIS Lookup',
+    'ssl_certs': 'SSL Certificates', 'hash_intel': 'Hash Intelligence',
+    'phone_disposable': 'Disposable Phone Check', 'vulnerability_scan': 'Vulnerability Scan',
+    'address_lookup': 'Address Lookup', 'ip_geolocation': 'IP Geolocation',
+};
+
+function humanModuleName(snake) {
+    if (!snake) return '\u2014';
+    if (MODULE_DISPLAY_NAMES[snake]) return MODULE_DISPLAY_NAMES[snake];
+    return snake.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+}
 
 // Consistent color palette for all charts
 var CHART_PALETTE = ['#3b82f6','#8b5cf6','#22c55e','#f59e0b','#ef4444','#06b6d4','#ec4899','#f97316'];
@@ -496,7 +549,7 @@ async function loadSummaryData() {
 }
 
 function renderModuleChart(byModule) {
-    var labels = Object.keys(byModule).map(function(n) { return n.replace(/_/g, ' '); });
+    var labels = Object.keys(byModule).map(function(n) { return humanModuleName(n); });
     var values = Object.values(byModule);
 
     chartInstances['moduleChart'] = new Chart(document.getElementById('moduleChart'), {
@@ -603,20 +656,37 @@ function renderTargetComparison(targets) {
         var row = el('tr');
         row.appendChild(el('td', {text: t.target_label, style: 'font-weight: 600;'}));
         row.appendChild(el('td', {text: t.target_type || '\u2014', style: 'color: var(--dim);'}));
-        row.appendChild(el('td', {text: String(t.findings_count || 0)}));
 
+        // Findings count with coverage color
+        var fc = t.findings_count || 0;
+        var fcColor = fc > 20 ? '#22c55e' : fc >= 5 ? '#f59e0b' : '#ef4444';
+        var fcTitle = fc > 20 ? 'Good coverage' : fc >= 5 ? 'Moderate coverage' : 'Low coverage \u2014 more modules needed';
+        row.appendChild(el('td', {text: String(fc), style: 'color: ' + fcColor + '; font-weight: 600;', title: fcTitle}));
+
+        // Flagged count with attention indicator
         var flaggedCount = t.flagged_count || 0;
         var flaggedTd = el('td');
         if (flaggedCount > 0) {
-            flaggedTd.appendChild(el('span', {text: String(flaggedCount), style: 'color: var(--yellow); font-weight: 600;'}));
+            flaggedTd.appendChild(el('span', {text: String(flaggedCount) + ' \u26a0', style: 'color: #ef4444; font-weight: 600;'}));
+            flaggedTd.title = flaggedCount + ' flagged finding(s) need attention';
         } else {
-            flaggedTd.appendChild(el('span', {text: '0', style: 'color: var(--dim);'}));
+            flaggedTd.appendChild(el('span', {text: '0 \u2713', style: 'color: #22c55e;'}));
+            flaggedTd.title = 'No flagged findings';
         }
         row.appendChild(flaggedTd);
 
+        // Highest confidence with context label
         var highConf = t.highest_confidence || 0;
-        var confColor = highConf > 70 ? 'var(--green)' : highConf > 40 ? 'var(--yellow)' : 'var(--red)';
-        row.appendChild(el('td', {text: highConf > 0 ? highConf + '%' : '\u2014', style: 'color: ' + confColor + '; font-weight: 600;'}));
+        var confLabel = '\u2014';
+        var confColor = 'var(--muted)';
+        if (highConf > 0) {
+            if (highConf >= 90) { confLabel = 'Very High (' + highConf + '%)'; confColor = '#22c55e'; }
+            else if (highConf >= 71) { confLabel = 'High (' + highConf + '%)'; confColor = '#22c55e'; }
+            else if (highConf >= 41) { confLabel = 'Medium (' + highConf + '%)'; confColor = '#f59e0b'; }
+            else if (highConf >= 20) { confLabel = 'Low (' + highConf + '%)'; confColor = '#f97316'; }
+            else { confLabel = 'Very Low (' + highConf + '%)'; confColor = '#ef4444'; }
+        }
+        row.appendChild(el('td', {text: confLabel, style: 'color: ' + confColor + '; font-weight: 600;'}));
 
         row.appendChild(el('td', {text: String(t.modules_run || 0), style: 'color: var(--dim);'}));
         body.appendChild(row);
@@ -838,7 +908,7 @@ function renderFindingTypeChart(byModule) {
 
     // Sort by count descending
     var entries = Object.entries(byModule).sort(function(a, b) { return b[1] - a[1]; });
-    var labels = entries.map(function(e) { return e[0].replace(/_/g, ' '); });
+    var labels = entries.map(function(e) { return humanModuleName(e[0]); });
     var values = entries.map(function(e) { return e[1]; });
     chartInstances['findingTypeChart'] = new Chart(canvas, {
         type: 'bar',
@@ -899,7 +969,7 @@ async function loadModulePerformance() {
         var tbody = document.createElement('tbody');
         data.forEach(function(m) {
             var row = document.createElement('tr');
-            row.appendChild(el('td', {text: m.module_name.replace(/_/g, ' '), style: 'font-weight: 600; text-transform: capitalize;'}));
+            row.appendChild(el('td', {text: humanModuleName(m.module_name), style: 'font-weight: 600;'}));
             row.appendChild(el('td', {text: String(m.total_findings)}));
             row.appendChild(el('td', {text: String(m.total_runs), style: 'color: var(--dim);'}));
 

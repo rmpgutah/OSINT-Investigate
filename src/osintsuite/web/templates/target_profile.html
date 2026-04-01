@@ -297,7 +297,7 @@ tr.reviewed { opacity: 0.6; }
         <h3>Module Run History</h3>
         {% for run in module_runs[:15] %}
         <div class="run-history-row">
-            <span style="flex: 1; font-weight: 500;">{{ run.module_name.replace('_', ' ').title() }}</span>
+            <span class="module-name-cell" data-module="{{ run.module_name }}" style="flex: 1; font-weight: 500;">{{ run.module_name.replace('_', ' ').title() }}</span>
             <span class="run-status run-status-{{ run.status }}">{{ run.status }}</span>
             <span style="color: var(--dim); min-width: 3rem; text-align: right;">{{ run.findings_count }} found</span>
             <span style="color: var(--muted); font-size: 0.78rem; min-width: 6rem; text-align: right;">
@@ -338,7 +338,7 @@ tr.reviewed { opacity: 0.6; }
         <div class="filter-pills" id="filterPills">
             {% for module_name in findings_by_module %}
             <button class="filter-pill" data-module="{{ module_name }}" onclick="toggleModulePill(this)">
-                {{ module_name.replace('_', ' ').title() }}
+                <span class="pill-label">{{ module_name.replace('_', ' ').title() }}</span>
                 <span class="pill-count">{{ findings_by_module[module_name]|length }}</span>
             </button>
             {% endfor %}
@@ -411,18 +411,29 @@ tr.reviewed { opacity: 0.6; }
                             <button class="flag-btn {% if finding.is_flagged %}active{% endif %}" onclick="event.stopPropagation(); toggleFlag('{{ finding.id }}', this)" title="Flag as important">&#9733;</button>
                             <button class="review-btn {% if finding.is_reviewed %}active{% endif %}" onclick="event.stopPropagation(); toggleReview('{{ finding.id }}', this)" title="Mark reviewed">&#10003;</button>
                         </td>
-                        <td><span class="badge badge-type" style="font-size: 0.7rem;">{{ finding.module_name.replace('_', ' ') }}</span></td>
+                        <td><span class="badge badge-type module-name-cell" data-module="{{ finding.module_name }}" style="font-size: 0.7rem;">{{ finding.module_name.replace('_', ' ') }}</span></td>
                         <td><span class="badge">{{ finding.source }}</span></td>
-                        <td onclick="toggleInlineExpand('{{ finding.id }}', this)">
+                        <td onclick="toggleInlineExpand('{{ finding.id }}', this)" class="content-cell" data-raw-content="{{ finding.content or '' }}">
                             {% if finding.content and finding.content.startswith('http') %}
                             <a href="{{ finding.content }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ finding.title or finding.content[:60] }}</a>
+                            {% elif finding.title %}
+                            {{ finding.title }}
+                            {% elif finding.content %}
+                            {% if finding.content|length > 80 %}
+                            <span title="{{ finding.content }}">{{ finding.content[:77] }}...</span>
                             {% else %}
-                            {{ finding.title or '\u2014' }}
+                            {{ finding.content }}
+                            {% endif %}
+                            {% else %}
+                            <span style="color: var(--muted); font-style: italic;">No content &mdash; see details</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="conf-cell" data-conf="{{ finding.confidence if finding.confidence is not none else '' }}">
                             {% if finding.confidence is not none %}
-                            <div class="conf-bar" title="{{ finding.confidence }}% confidence"><div class="conf-fill" style="width:{{ finding.confidence }}%;background:{{ 'var(--green)' if finding.confidence > 70 else 'var(--yellow)' if finding.confidence > 40 else 'var(--red)' }};"></div></div>
+                            <div style="display:flex;align-items:center;gap:0.4rem;">
+                                <div class="conf-bar" title="{{ finding.confidence }}% confidence"><div class="conf-fill" style="width:{{ finding.confidence }}%;background:{{ 'var(--green)' if finding.confidence > 70 else 'var(--yellow)' if finding.confidence > 40 else 'var(--red)' }};"></div></div>
+                                <span class="conf-context-label" style="font-size:0.7rem;white-space:nowrap;"></span>
+                            </div>
                             {% else %}
                             <span style="color: var(--muted);">\u2014</span>
                             {% endif %}
@@ -481,6 +492,165 @@ tr.reviewed { opacity: 0.6; }
 const TARGET_ID = "{{ target.id }}";
 const PAGE_SIZE = 50;
 let currentPage = 1;
+
+// ── Human-readable module names ─────────────────────────────────
+const MODULE_DISPLAY_NAMES = {
+    'person_search': 'Person Search',
+    'criminal_records': 'Criminal Records',
+    'warrant_search': 'Warrant Search',
+    'arrest_records': 'Arrest Records',
+    'inmate_search': 'Inmate Lookup',
+    'parole_probation': 'Parole & Probation',
+    'education_history': 'Education History',
+    'employment_history': 'Employment History',
+    'military_records': 'Military Records',
+    'marriage_divorce': 'Marriage & Divorce',
+    'financial_records': 'Financial Records',
+    'domain_recon': 'Domain Reconnaissance',
+    'email_intel': 'Email Intelligence',
+    'phone_lookup': 'Phone Lookup',
+    'social_media': 'Social Media',
+    'web_scraper': 'Web Content',
+    'ip_forensics': 'IP Forensics',
+    'ssl_certificate': 'SSL Certificates',
+    'port_scan': 'Port Scan',
+    'malware_check': 'Malware Check',
+    'data_breach_check': 'Data Breaches',
+    'reputation_score': 'Reputation Score',
+    'dark_web': 'Dark Web',
+    'news_monitor': 'News Monitor',
+    'voter_registration': 'Voter Registration',
+    'lawsuit_search': 'Lawsuits',
+    'sanctions_check': 'Sanctions Check',
+    'google_dork': 'Google Dorking',
+    'subdomain_enum': 'Subdomains',
+    'tech_stack': 'Technology Stack',
+    'dns_history': 'DNS History',
+    'geolocation': 'Geolocation',
+    'life_event_timeline': 'Life Events',
+    'court_records': 'Court Records',
+    'sex_offender': 'Sex Offender Registry',
+    'incarceration': 'Incarceration Records',
+    'criminal_history': 'Criminal History',
+    'social_profiles': 'Social Profiles',
+    'username_search': 'Username Search',
+    'review_search': 'Review Sites',
+    'associates_network': 'Associates Network',
+    'dating_profiles': 'Dating Profiles',
+    'forum_search': 'Forum Posts',
+    'bankruptcy': 'Bankruptcy Records',
+    'property_records': 'Property Records',
+    'business_records': 'Business Records',
+    'corporate_filings': 'Corporate Filings',
+    'tax_liens': 'Tax Liens',
+    'email_deep': 'Deep Email Analysis',
+    'github_intel': 'GitHub Intelligence',
+    'paste_search': 'Paste Sites',
+    'data_breach': 'Data Breaches',
+    'username_enum': 'Username Enumeration',
+    'website_content': 'Website Content',
+    'dns_recon': 'DNS Reconnaissance',
+    'whois_lookup': 'WHOIS Lookup',
+    'ssl_certs': 'SSL Certificates',
+    'hash_intel': 'Hash Intelligence',
+    'phone_disposable': 'Disposable Phone Check',
+    'vulnerability_scan': 'Vulnerability Scan',
+    'address_lookup': 'Address Lookup',
+    'ip_geolocation': 'IP Geolocation',
+};
+
+function humanModuleName(snake) {
+    if (!snake) return '\u2014';
+    if (MODULE_DISPLAY_NAMES[snake]) return MODULE_DISPLAY_NAMES[snake];
+    return snake.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+}
+
+// ── Human-readable data key labels ──────────────────────────────
+const DATA_KEY_LABELS = {
+    'case_name': 'Case Name',
+    'date_filed': 'Date Filed',
+    'docket_number': 'Docket Number',
+    'company_name': 'Company Name',
+    'incorporation_date': 'Incorporation Date',
+    'filing_type': 'Filing Type',
+    'license_type': 'License Type',
+    'registration_status': 'Registration Status',
+    'party_affiliation': 'Party Affiliation',
+    'warrant_type': 'Warrant Type',
+    'arrest_type': 'Arrest Type',
+    'supervision_type': 'Supervision Type',
+    'record_type': 'Record Type',
+    'risk_score': 'Risk Score',
+    'is_disposable': 'Disposable Email',
+    'carrier': 'Phone Carrier',
+    'number_type': 'Number Type',
+    'birth_year': 'Birth Year',
+    'death_year': 'Death Year',
+    'event_type': 'Event Type',
+    'citation_count': 'Citations',
+    'co_authors': 'Co-Authors',
+    'total_findings': 'Total Findings',
+    'sources_checked': 'Sources Checked',
+    'source_url': 'Source URL',
+    'url': 'URL',
+    'snippet': 'Text Excerpt',
+    'jurisdiction': 'Jurisdiction',
+    'case_number': 'Case Number',
+    'status': 'Status',
+    'address': 'Address',
+    'phone': 'Phone',
+    'email': 'Email',
+    'name': 'Name',
+    'platform': 'Platform',
+    'username': 'Username',
+    'breach_date': 'Breach Date',
+    'breach_name': 'Breach Name',
+    'latitude': 'Latitude',
+    'longitude': 'Longitude',
+    'confidence': 'Confidence',
+    'date_of_birth': 'Date of Birth',
+    'full_name': 'Full Name',
+    'first_name': 'First Name',
+    'last_name': 'Last Name',
+    'middle_name': 'Middle Name',
+    'city': 'City',
+    'state': 'State',
+    'zip_code': 'ZIP Code',
+    'country': 'Country',
+    'age': 'Age',
+    'gender': 'Gender',
+};
+
+function humanKeyName(key) {
+    if (!key) return '\u2014';
+    if (DATA_KEY_LABELS[key]) return DATA_KEY_LABELS[key];
+    return key.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+}
+
+// ── Confidence score context text ───────────────────────────────
+function confidenceContext(pct) {
+    if (pct === null || pct === undefined) return {text: '\u2014', cls: '', color: 'var(--muted)'};
+    if (pct >= 90) return {text: 'Very High (' + pct + '%)', cls: 'conf-high', color: '#22c55e'};
+    if (pct >= 71) return {text: 'High (' + pct + '%)', cls: 'conf-high', color: '#22c55e'};
+    if (pct >= 41) return {text: 'Medium (' + pct + '%)', cls: 'conf-med', color: '#f59e0b'};
+    if (pct >= 20) return {text: 'Low (' + pct + '%)', cls: 'conf-low', color: '#f97316'};
+    return {text: 'Very Low (' + pct + '%)', cls: 'conf-low', color: '#ef4444'};
+}
+
+// ── Humanize content display ────────────────────────────────────
+function humanContent(content) {
+    if (!content || content === 'null' || content === 'undefined') return {text: 'No content \u2014 see details', muted: true, href: null};
+    if (typeof content === 'string' && content.match(/^https?:\/\//)) {
+        try {
+            var u = new URL(content);
+            var display = 'View: ' + u.hostname + u.pathname;
+            if (display.length > 60) display = display.substring(0, 57) + '...';
+            return {text: display, muted: false, href: content};
+        } catch(e) { /* fall through */ }
+    }
+    if (content.length > 80) return {text: content.substring(0, 77) + '...', muted: false, href: null, full: content};
+    return {text: content, muted: false, href: null};
+}
 
 // ── Module pill filtering ───────────────────────────────────────
 let activeModules = new Set();
@@ -800,9 +970,9 @@ async function loadSlideoutContent(findingId) {
         title.textContent = f.title || f.finding_type;
         body.replaceChildren();
 
-        // Source badge
+        // Source badge with humanized module name
         const badges = el('div', {style: 'margin-bottom: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;'});
-        badges.appendChild(el('span', {class: 'badge badge-type', text: (f.module_name || '').replace(/_/g, ' ')}));
+        badges.appendChild(el('span', {class: 'badge badge-type', text: humanModuleName(f.module_name)}));
         badges.appendChild(el('span', {class: 'badge', text: f.source || ''}));
         if (f.finding_type) badges.appendChild(el('span', {class: 'badge', text: f.finding_type}));
         body.appendChild(badges);
@@ -813,14 +983,14 @@ async function loadSlideoutContent(findingId) {
             body.appendChild(ftDesc);
         }
 
-        // Confidence gauge
+        // Confidence gauge with context text
         if (f.confidence !== null && f.confidence !== undefined) {
             const confSection = el('div', {class: 'slideout-section'});
             confSection.appendChild(el('strong', {text: 'Confidence'}));
-            const confColor = f.confidence > 70 ? 'var(--green)' : f.confidence > 40 ? 'var(--yellow)' : 'var(--red)';
-            confSection.appendChild(el('span', {text: f.confidence + '%', style: 'font-weight: 700; color: ' + confColor + ';'}));
+            var ctx = confidenceContext(f.confidence);
+            confSection.appendChild(el('span', {text: ctx.text, style: 'font-weight: 700; color: ' + ctx.color + ';'}));
             const gauge = el('div', {class: 'conf-gauge'});
-            const fill = el('div', {class: 'conf-gauge-fill', style: 'width: ' + f.confidence + '%; background: ' + confColor + ';'});
+            const fill = el('div', {class: 'conf-gauge-fill', style: 'width: ' + f.confidence + '%; background: ' + ctx.color + ';'});
             gauge.appendChild(fill);
             confSection.appendChild(gauge);
             body.appendChild(confSection);
@@ -871,14 +1041,14 @@ async function loadSlideoutContent(findingId) {
             dataHeader.appendChild(copyBtn);
             ds.appendChild(dataHeader);
 
-            // Render as key-value table
+            // Render as key-value table with humanized labels
             var table = document.createElement('table');
             table.className = 'data-kv-table';
             Object.keys(f.data).forEach(function(key) {
                 var val = f.data[key];
                 var tr = document.createElement('tr');
                 var tdKey = document.createElement('td');
-                tdKey.textContent = key;
+                tdKey.textContent = humanKeyName(key);
                 if (DATA_FIELD_DESC[key]) {
                     tdKey.classList.add('tooltip');
                     tdKey.setAttribute('data-tip', DATA_FIELD_DESC[key]);
@@ -1070,7 +1240,7 @@ async function loadModuleStatusGrid() {
             tile.className = 'mod-tile';
             var nameDiv = document.createElement('div');
             nameDiv.className = 'mod-tile-name';
-            nameDiv.textContent = mod.name.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+            nameDiv.textContent = humanModuleName(mod.name);
             tile.appendChild(nameDiv);
 
             var infoDiv = document.createElement('div');
@@ -1091,7 +1261,7 @@ async function loadModuleStatusGrid() {
             } else {
                 tile.classList.add('mod-tile-gray');
                 infoDiv.textContent = 'Not run';
-                tile.title = 'Click to run ' + mod.name.replace(/_/g, ' ');
+                tile.title = 'Click to run ' + humanModuleName(mod.name);
                 tile.onclick = function() { runSingleModule(mod.name, tile); };
             }
 
@@ -1707,10 +1877,37 @@ async function exportFullProfile() {
     showToast('Full profile exported as JSON');
 }
 
+// ── Apply human-readable names to all elements on page ──────────
+function applyHumanModuleNames() {
+    document.querySelectorAll('.module-name-cell[data-module]').forEach(function(el) {
+        el.textContent = humanModuleName(el.getAttribute('data-module'));
+    });
+    document.querySelectorAll('.filter-pill[data-module] .pill-label').forEach(function(el) {
+        var pill = el.closest('.filter-pill');
+        if (pill) el.textContent = humanModuleName(pill.getAttribute('data-module'));
+    });
+}
+
+function applyConfidenceContext() {
+    document.querySelectorAll('.conf-cell[data-conf]').forEach(function(td) {
+        var raw = td.getAttribute('data-conf');
+        if (raw === '' || raw === null) return;
+        var pct = parseInt(raw, 10);
+        var ctx = confidenceContext(pct);
+        var label = td.querySelector('.conf-context-label');
+        if (label) {
+            label.textContent = ctx.text;
+            label.style.color = ctx.color;
+        }
+    });
+}
+
 // Init
 populateCategoryStats();
 buildTimelineMini();
 loadModuleStatusGrid();
+applyHumanModuleNames();
+applyConfidenceContext();
 applyFilters();
 </script>
 {% endblock %}

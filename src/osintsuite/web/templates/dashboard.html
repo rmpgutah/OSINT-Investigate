@@ -105,6 +105,17 @@
 .quick-create-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
 .quick-create-btn { padding: 0.3rem 0.7rem; font-size: 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r); color: var(--dim); cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap; }
 .quick-create-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Human-readable data output ──────────────────────────────── */
+.date-human { white-space: nowrap; }
+.date-human .date-relative { font-weight: 500; }
+.date-human .date-absolute { color: var(--muted); font-size: 0.78rem; }
+
+.status-icon { margin-right: 0.2rem; font-size: 0.75em; vertical-align: middle; }
+
+.findings-good { color: var(--green); font-weight: 600; }
+.findings-moderate { color: var(--yellow); font-weight: 600; }
+.findings-sparse { color: var(--red); font-weight: 600; }
 </style>
 {% endblock %}
 
@@ -274,11 +285,11 @@
                     <td onclick="event.stopPropagation()"><input type="checkbox" class="case-cb" data-inv-id="{{ item.inv.id }}" data-case-number="{{ item.inv.case_number }}" onchange="updateBatchDeleteBar()"></td>
                     <td><a href="{{ request.scope.get('root_path', '') }}/investigation/{{ item.inv.case_number }}"><strong>{{ item.inv.case_number }}</strong></a></td>
                     <td>{{ item.inv.title }}</td>
-                    <td><span class="badge badge-{{ item.inv.status }}">{{ item.inv.status }}</span></td>
-                    <td><span class="badge badge-{{ item.inv.priority }}">{{ item.inv.priority }}</span></td>
+                    <td><span class="badge badge-{{ item.inv.status }}"><span class="status-icon">{% if item.inv.status == 'open' %}&#9675;{% elif item.inv.status == 'active' %}&#9889;{% elif item.inv.status == 'closed' %}&#10003;{% elif item.inv.status == 'archived' %}&#128451;{% endif %}</span>{{ item.inv.status }}</span></td>
+                    <td><span class="badge badge-{{ item.inv.priority }} tooltip" data-tip="{% if item.inv.priority == 'critical' %}Critical — Requires immediate attention{% elif item.inv.priority == 'high' %}High — Prioritize this week{% elif item.inv.priority == 'medium' %}Medium — Standard processing{% else %}Low — When resources allow{% endif %}">{{ item.inv.priority }}</span></td>
                     <td style="color: var(--dim);">{{ item.target_count }}</td>
-                    <td style="color: var(--dim);">{{ item.finding_count }}</td>
-                    <td style="color: var(--dim);">{{ item.inv.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td class="finding-count-cell" data-count="{{ item.finding_count }}" style="color: var(--dim);">{{ item.finding_count }}</td>
+                    <td class="date-cell" data-iso="{{ item.inv.created_at.isoformat() }}" style="color: var(--dim);">{{ item.inv.created_at.strftime('%Y-%m-%d') }}</td>
                     <td class="age-cell" data-created="{{ item.inv.created_at.isoformat() }}" style="color:var(--muted);font-size:0.82rem;"></td>
                     <td style="display: flex; gap: 0.4rem;">
                         <a href="{{ request.scope.get('root_path', '') }}/investigation/{{ item.inv.case_number }}" class="btn btn-sm">View</a>
@@ -352,6 +363,54 @@ function countUp(element, target) {
     requestAnimationFrame(step);
 }
 
+// ── Human-readable date formatting ─────────────────────────────────
+function formatDate(isoString) {
+    if (!isoString) return '\u2014';
+    var d = new Date(isoString);
+    if (isNaN(d.getTime())) return isoString;
+    var rel = relativeTime(isoString);
+    var abs = d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+    return rel + ' (' + abs + ')';
+}
+
+function applyHumanDates() {
+    document.querySelectorAll('.date-cell[data-iso]').forEach(function(td) {
+        var iso = td.getAttribute('data-iso');
+        if (!iso) return;
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return;
+        td.textContent = '';
+        var wrap = document.createElement('span');
+        wrap.className = 'date-human';
+        var relSpan = document.createElement('span');
+        relSpan.className = 'date-relative';
+        relSpan.textContent = relativeTime(iso);
+        var absSpan = document.createElement('span');
+        absSpan.className = 'date-absolute';
+        absSpan.textContent = ' (' + d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}) + ')';
+        wrap.appendChild(relSpan);
+        wrap.appendChild(absSpan);
+        td.appendChild(wrap);
+    });
+}
+
+// ── Finding count context coloring ─────────────────────────────────
+function applyFindingCountContext() {
+    document.querySelectorAll('.finding-count-cell[data-count]').forEach(function(td) {
+        var count = parseInt(td.getAttribute('data-count'), 10) || 0;
+        if (count > 20) {
+            td.classList.add('findings-good');
+            td.setAttribute('title', 'Good coverage (' + count + ' findings)');
+        } else if (count >= 5) {
+            td.classList.add('findings-moderate');
+            td.setAttribute('title', 'Moderate coverage (' + count + ' findings) \u2014 consider running more modules');
+        } else {
+            td.classList.add('findings-sparse');
+            td.setAttribute('title', 'Low coverage (' + count + ' findings) \u2014 more modules needed');
+        }
+    });
+}
+
 // Animate all stat numbers on load
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.stat-number[data-count]').forEach(function(el) {
@@ -363,6 +422,9 @@ document.addEventListener('DOMContentLoaded', function() {
     loadQuickStats();
     // Compute age for each row
     computeAgeCells();
+    // Human-readable dates and finding context
+    applyHumanDates();
+    applyFindingCountContext();
     // Load findings ticker
     loadFindingsTicker();
     // Update subtitle with actual module count

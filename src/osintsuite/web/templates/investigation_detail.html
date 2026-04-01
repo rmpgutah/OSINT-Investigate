@@ -290,11 +290,12 @@
             </div>
             <div class="target-grid" id="targetGrid">
                 {% for target in investigation.targets %}
-                <div class="card target-card {% if investigation.targets|length > 5 %}target-compact{% endif %}" id="target-{{ target.id }}" data-target-id="{{ target.id }}" draggable="true" ondragstart="targetDragStart(event)" ondragover="targetDragOver(event)" ondrop="targetDrop(event)" ondragend="targetDragEnd(event)">
+                <div class="card target-card {% if investigation.targets|length > 5 %}target-compact{% endif %}" id="target-{{ target.id }}" data-target-id="{{ target.id }}" data-target-type="{{ target.target_type }}" draggable="true" ondragstart="targetDragStart(event)" ondragover="targetDragOver(event)" ondrop="targetDrop(event)" ondragend="targetDragEnd(event)">
                     <div class="target-header">
                         <span class="badge badge-type">{{ target.target_type }}</span>
                         <a href="{{ request.scope.get('root_path', '') }}/target/{{ target.id }}/profile" class="target-label-link" data-target-id="{{ target.id }}">{{ target.label }}</a>
                     </div>
+                    <div class="status-explanation target-type-desc" data-type="{{ target.target_type }}"></div>
                     <div class="target-details expandable-detail">
                         {% if target.full_name %}<p><strong>Name:</strong> {{ target.full_name }}</p>{% endif %}
                         {% if target.email %}<p><strong>Email:</strong> {{ target.email }}</p>{% endif %}
@@ -575,6 +576,70 @@
 <script>
 const INV_ID = "{{ investigation.id }}";
 
+// ── Target type descriptions ────────────────────────────────────
+const TARGET_TYPE_DESC = {
+    'person': 'Individual person \u2014 runs criminal, social, financial, identity modules',
+    'domain': 'Website domain \u2014 runs DNS, tech stack, SSL, subdomain, content modules',
+    'email': 'Email address \u2014 runs breach, reputation, permutation, deep analysis modules',
+    'phone': 'Phone number \u2014 runs carrier, VoIP detection, reputation, deep lookup modules',
+    'username': 'Online username \u2014 runs social media, forum, dating, digital footprint modules',
+    'ip': 'IP address \u2014 runs geolocation, port scan, ASN, malware, reputation modules',
+    'organization': 'Company/org \u2014 runs business entity, SEC, sanctions, nonprofit, contracts modules',
+};
+
+(function() {
+    document.querySelectorAll('.target-type-desc[data-type]').forEach(function(el) {
+        var t = el.getAttribute('data-type');
+        el.textContent = TARGET_TYPE_DESC[t] || ('Target type: ' + t);
+    });
+})();
+
+// ── Module status friendly messages ─────────────────────────────
+const MODULE_STATUS_MSG = {
+    'criminal_records': 'Searching criminal records databases...',
+    'court_records': 'Checking court filing records...',
+    'arrest_records': 'Scanning arrest and booking databases...',
+    'sex_offender': 'Querying sex offender registries...',
+    'warrant_search': 'Searching active warrant databases...',
+    'incarceration': 'Checking incarceration records...',
+    'criminal_history': 'Compiling criminal history report...',
+    'social_media': 'Analyzing social media profiles...',
+    'social_profiles': 'Discovering social media accounts...',
+    'username_search': 'Searching username across platforms...',
+    'review_search': 'Checking review site profiles...',
+    'associates_network': 'Mapping known associates network...',
+    'dating_profiles': 'Scanning dating platform profiles...',
+    'forum_search': 'Searching forum and message board posts...',
+    'financial_records': 'Checking financial records...',
+    'bankruptcy': 'Searching bankruptcy filings...',
+    'property_records': 'Looking up property ownership records...',
+    'business_records': 'Querying business entity databases...',
+    'corporate_filings': 'Checking corporate filing records...',
+    'tax_liens': 'Searching tax lien records...',
+    'email_deep': 'Running deep email analysis...',
+    'github_intel': 'Analyzing GitHub activity and repos...',
+    'paste_search': 'Searching paste sites for mentions...',
+    'data_breach': 'Checking known data breaches...',
+    'dark_web': 'Scanning dark web sources...',
+    'dns_recon': 'Running DNS reconnaissance...',
+    'whois_lookup': 'Performing WHOIS lookup...',
+    'tech_stack': 'Identifying technology stack...',
+    'ssl_certs': 'Analyzing SSL certificates...',
+    'subdomain_enum': 'Enumerating subdomains...',
+    'port_scan': 'Scanning open ports...',
+    'geolocation': 'Resolving geographic location...',
+    'voter_registration': 'Checking voter registration records...',
+    'person_search': 'Running person search across databases...',
+    'education_history': 'Checking education records...',
+    'employment_history': 'Verifying employment history...',
+    'military_records': 'Searching military service records...',
+    'marriage_divorce': 'Checking marriage and divorce records...',
+};
+
+function getModuleStatusMsg(moduleName) {
+    return MODULE_STATUS_MSG[moduleName] || ('Running ' + moduleName.replace(/_/g, ' ') + ' module...');
+}
+
 // ── Tab switching ───────────────────────────────────────────────
 let findingsLoaded = false;
 let graphLoaded = false;
@@ -702,7 +767,7 @@ async function loadModulePills() {
 
 async function runSingleModule(targetId, moduleName, pill) {
     pill.classList.add('running');
-    pill.textContent = moduleName.replace(/_/g, ' ') + '...';
+    pill.textContent = getModuleStatusMsg(moduleName);
     try {
         const resp = await fetch(BASE + '/api/targets/' + targetId + '/run', {
             method: 'POST',
@@ -784,12 +849,24 @@ async function runCorrelations() {
 
         data.forEach(c => {
             const card = el('div', {class: 'correlation-card'});
-            const left = el('a', {href: '/target/' + c.target_a.id + '/profile', text: c.target_a.label, style: 'font-weight: 600; color: var(--accent);'});
+            const left = el('a', {href: BASE + '/target/' + c.target_a.id + '/profile', text: c.target_a.label, style: 'font-weight: 600; color: var(--accent);'});
             const arrow = el('span', {class: 'corr-link', text: '\u2194'});
-            const right = el('a', {href: '/target/' + c.target_b.id + '/profile', text: c.target_b.label, style: 'font-weight: 600; color: var(--accent);'});
+            const right = el('a', {href: BASE + '/target/' + c.target_b.id + '/profile', text: c.target_b.label, style: 'font-weight: 600; color: var(--accent);'});
             const info = el('div', {style: 'flex: 1;'});
-            info.appendChild(el('div', {class: 'corr-field', text: c.field}));
-            info.appendChild(el('div', {class: 'corr-value', text: c.value_a === c.value_b ? c.value_a : c.value_a + ' \u2248 ' + c.value_b}));
+
+            // Plain-English correlation description
+            var fieldLabel = c.field.replace(/_/g, ' ');
+            var desc = '';
+            if (c.match_type === 'exact' || c.similarity >= 100) {
+                desc = 'Both targets share the same ' + fieldLabel + ' (' + (c.value_a || 'N/A') + ') \u2014 this is a strong connection';
+            } else if (c.similarity >= 80) {
+                desc = 'Similar ' + fieldLabel + ' found (' + c.similarity + '% match) \u2014 may indicate the same person';
+            } else {
+                desc = 'Possible ' + fieldLabel + ' overlap (' + c.similarity + '% match) \u2014 warrants further investigation';
+            }
+            info.appendChild(el('div', {class: 'corr-field', text: fieldLabel, style: 'text-transform: capitalize; font-weight: 600;'}));
+            info.appendChild(el('div', {class: 'status-explanation', text: desc, style: 'font-style: normal; margin-top: 0.25rem;'}));
+
             const badge = el('span', {class: 'corr-badge ' + (c.match_type === 'exact' ? 'corr-exact' : 'corr-fuzzy'), text: c.match_type + ' ' + c.similarity + '%'});
             card.appendChild(left);
             card.appendChild(arrow);
@@ -1235,11 +1312,60 @@ async function peekFindings(targetId, label) {
         findings.slice(0, 10).forEach(f => {
             const item = el('div', {class: 'preview-item'});
             item.appendChild(el('div', {class: 'pi-title', text: f.title || f.finding_type || '\u2014'}));
-            const meta = [];
-            if (f.module_name) meta.push(f.module_name.replace(/_/g, ' '));
-            if (f.confidence !== null && f.confidence !== undefined) meta.push(f.confidence + '%');
-            if (f.source) meta.push(f.source);
-            item.appendChild(el('div', {class: 'pi-meta', text: meta.join(' \u00b7 ')}));
+
+            // Confidence as colored text
+            var confText = '\u2014';
+            var confStyle = 'color: var(--muted);';
+            if (f.confidence !== null && f.confidence !== undefined) {
+                var c = f.confidence;
+                if (c >= 90) { confText = 'Very High (' + c + '%)'; confStyle = 'color: #22c55e; font-weight: 600;'; }
+                else if (c >= 71) { confText = 'High (' + c + '%)'; confStyle = 'color: #22c55e;'; }
+                else if (c >= 41) { confText = 'Medium (' + c + '%)'; confStyle = 'color: #f59e0b;'; }
+                else if (c >= 20) { confText = 'Low (' + c + '%)'; confStyle = 'color: #f97316;'; }
+                else { confText = 'Very Low (' + c + '%)'; confStyle = 'color: #ef4444;'; }
+            }
+            var confEl = el('span', {text: confText, style: confStyle + ' font-size: 0.75rem;'});
+            item.appendChild(confEl);
+
+            // Source in readable form
+            var sourceText = '';
+            if (f.source && f.module_name) {
+                sourceText = 'Source: ' + f.source + ' via ' + f.module_name.replace(/_/g, ' ') + ' module';
+            } else if (f.source) {
+                sourceText = 'Source: ' + f.source;
+            } else if (f.module_name) {
+                sourceText = 'From ' + f.module_name.replace(/_/g, ' ') + ' module';
+            }
+            if (sourceText) item.appendChild(el('div', {class: 'pi-meta', text: sourceText}));
+
+            // Relative date
+            if (f.created_at) {
+                var d = new Date(f.created_at);
+                var now = new Date();
+                var diffMs = now - d;
+                var diffH = Math.floor(diffMs / 3600000);
+                var timeText = '';
+                if (diffH < 1) timeText = 'Found just now';
+                else if (diffH < 24) timeText = 'Found ' + diffH + ' hour' + (diffH !== 1 ? 's' : '') + ' ago';
+                else { var diffD = Math.floor(diffH / 24); timeText = 'Found ' + diffD + ' day' + (diffD !== 1 ? 's' : '') + ' ago'; }
+                item.appendChild(el('div', {class: 'pi-meta', text: timeText}));
+            }
+
+            // Clickable source link if URL found in data or content
+            var url = null;
+            if (f.content && typeof f.content === 'string' && f.content.match(/^https?:\/\//)) url = f.content;
+            if (!url && f.data) {
+                if (f.data.url) url = f.data.url;
+                else if (f.data.source_url) url = f.data.source_url;
+            }
+            if (url) {
+                var link = el('a', {text: 'View Source \u2192', style: 'color: var(--accent); font-size: 0.78rem; text-decoration: underline;'});
+                link.href = url;
+                link.target = '_blank';
+                link.rel = 'noopener';
+                item.appendChild(link);
+            }
+
             content.appendChild(item);
         });
 
