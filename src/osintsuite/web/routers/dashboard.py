@@ -2,10 +2,11 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from osintsuite.config import get_settings
 from osintsuite.db.repository import Repository
 from osintsuite.web.dependencies import get_repo
 
@@ -49,7 +50,7 @@ async def dashboard(request: Request, repo: Repository = Depends(get_repo)):
     return templates.TemplateResponse(
         request,
         "dashboard.html",
-        context={"investigations": enriched, "stats": stats},
+        context={"investigations": enriched, "stats": stats, "user": getattr(request.state, 'user', None)},
     )
 
 
@@ -65,7 +66,7 @@ async def investigation_detail(
     return templates.TemplateResponse(
         request,
         "investigation_detail.html",
-        context={"investigation": inv_full},
+        context={"investigation": inv_full, "user": getattr(request.state, 'user', None)},
     )
 
 
@@ -150,6 +151,7 @@ async def investigation_summary(
             "risk_score": risk_score,
             "flagged_findings_chain": flagged_findings_chain,
             "top_findings": top_findings,
+            "user": getattr(request.state, 'user', None),
         },
     )
 
@@ -181,5 +183,80 @@ async def target_profile(
     return templates.TemplateResponse(
         request,
         "target_profile.html",
-        context={"target": target, "findings_by_module": modules, "investigation": investigation, "module_runs": module_runs},
+        context={"target": target, "findings_by_module": modules, "investigation": investigation, "module_runs": module_runs, "user": getattr(request.state, 'user', None)},
     )
+
+
+@router.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """Render login page. If already authenticated, redirect to dashboard."""
+    from osintsuite.web.middleware.auth import get_current_user
+    user = get_current_user(request)
+    if user:
+        root_path = request.scope.get("root_path", "")
+        return RedirectResponse(url=f"{root_path}/", status_code=302)
+
+    settings = get_settings()
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        context={"rmpg_flex_url": settings.rmpg_flex_url},
+    )
+
+
+@router.post("/auth/callback")
+async def auth_callback(request: Request):
+    """Receive JWT token from login form and set as httpOnly cookie."""
+    from fastapi.responses import JSONResponse
+
+    data = await request.json()
+    token = data.get("token")
+    refresh_token = data.get("refreshToken")
+
+    if not token:
+        raise HTTPException(status_code=400, detail="Token required")
+
+    # Verify the token is valid before setting cookie
+    settings = get_settings()
+    if settings.rmpg_jwt_secret:
+        from osintsuite.web.middleware.auth import verify_jwt_token
+        user = verify_jwt_token(token, settings.rmpg_jwt_secret)
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+    response = JSONResponse({"status": "ok"})
+    root_path = request.scope.get("root_path", "")
+    cookie_path = root_path + "/" if root_path else "/"
+
+    response.set_cookie(
+        key="osint_token",
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        path=cookie_path,
+        max_age=900,  # 15 minutes (matches RMPG Flex access token expiry)
+    )
+    if refresh_token:
+        response.set_cookie(
+            key="osint_refresh",
+            value=refresh_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            path=cookie_path,
+            max_age=604800,  # 7 days
+        )
+
+    return response
+
+
+@router.get("/logout")
+async def logout(request: Request):
+    """Clear auth cookies and redirect to login."""
+    root_path = request.scope.get("root_path", "")
+    cookie_path = root_path + "/" if root_path else "/"
+    response = RedirectResponse(url=f"{root_path}/login", status_code=302)
+    response.delete_cookie("osint_token", path=cookie_path)
+    response.delete_cookie("osint_refresh", path=cookie_path)
+    return response

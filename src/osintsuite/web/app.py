@@ -58,6 +58,10 @@ def create_app() -> FastAPI:
     async def health():
         return {"status": "ok", "version": "0.1.0"}
 
+    # Authentication middleware (must be added after routes)
+    from osintsuite.web.middleware.auth import AuthMiddleware
+    app.add_middleware(AuthMiddleware)
+
     return app
 
 

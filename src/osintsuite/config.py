@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     virustotal_api_key: str | None = None
     abuseipdb_api_key: str | None = None
 
+    # RMPG Flex integration
+    rmpg_jwt_secret: str = ""  # Shared JWT secret with RMPG Flex (leave empty to disable auth)
+    rmpg_flex_url: str = "https://rmpgutah.us"  # RMPG Flex base URL for login API
+
     # Web interface
     web_host: str = "127.0.0.1"
     web_port: int = 8000

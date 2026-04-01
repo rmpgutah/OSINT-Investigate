@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — OSINT Investigation Suite</title>
+    <style>
+    /* RMPG Flex matching styles */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: #0d1520;
+        color: #e5e7eb;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+    }
+
+    .login-container {
+        width: 100%;
+        max-width: 400px;
+        padding: 2rem;
+    }
+
+    .login-brand {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .login-brand .brand-icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 1rem;
+        background: linear-gradient(135deg, #1a5a9e, #155085);
+        border-radius: 2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .login-brand .brand-icon svg {
+        width: 36px;
+        height: 36px;
+        stroke: #e5e7eb;
+    }
+    .login-brand h1 {
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+    }
+    .login-brand .brand-sub {
+        color: #d4a017;
+        font-size: 11px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        margin-top: 0.3rem;
+    }
+    .login-brand .brand-org {
+        color: #6b7280;
+        font-size: 11px;
+        margin-top: 0.5rem;
+    }
+
+    .login-card {
+        background: #1a2636;
+        border: 1px solid #1e3048;
+        border-radius: 2px;
+        padding: 2rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+    .form-group label {
+        display: block;
+        color: #d4a017;
+        font-size: 10px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 0.4rem;
+    }
+    .form-group input {
+        width: 100%;
+        padding: 0.6rem 0.8rem;
+        background: #0d1520;
+        border: 1px solid #1e3048;
+        border-radius: 2px;
+        color: #e5e7eb;
+        font-size: 13px;
+        font-family: inherit;
+        transition: border-color 0.2s;
+    }
+    .form-group input:focus {
+        outline: none;
+        border-color: #1a5a9e;
+        box-shadow: 0 0 0 3px rgba(26,90,158,0.2);
+    }
+    .form-group input::placeholder {
+        color: #6b7280;
+    }
+
+    .login-btn {
+        width: 100%;
+        padding: 0.7rem;
+        background: linear-gradient(135deg, #1a5a9e, #155085);
+        border: none;
+        border-radius: 2px;
+        color: #e5e7eb;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.2s;
+        letter-spacing: 0.02em;
+    }
+    .login-btn:hover {
+        background: linear-gradient(135deg, #1e6ab5, #1a5a9e);
+        box-shadow: 0 4px 12px rgba(26,90,158,0.3);
+    }
+    .login-btn:active {
+        transform: scale(0.98);
+    }
+    .login-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .login-error {
+        background: rgba(220,38,38,0.1);
+        border: 1px solid rgba(220,38,38,0.3);
+        border-radius: 2px;
+        padding: 0.6rem 0.8rem;
+        color: #fca5a5;
+        font-size: 12px;
+        margin-bottom: 1rem;
+        display: none;
+    }
+    .login-error.visible { display: block; }
+
+    /* 2FA section */
+    .twofa-section {
+        display: none;
+        margin-top: 1rem;
+    }
+    .twofa-section.visible { display: block; }
+    .twofa-section .form-group input {
+        text-align: center;
+        font-size: 18px;
+        letter-spacing: 0.3em;
+        font-family: Consolas, 'Courier New', monospace;
+    }
+
+    .login-footer {
+        text-align: center;
+        margin-top: 1.5rem;
+        color: #6b7280;
+        font-size: 11px;
+    }
+    .login-footer a {
+        color: #1a5a9e;
+        text-decoration: none;
+    }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-brand">
+            <div class="brand-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                </svg>
+            </div>
+            <h1>OSINT Investigation Suite</h1>
+            <div class="brand-sub">Intelligence Platform</div>
+            <div class="brand-org">Rocky Mountain Protective Group</div>
+        </div>
+
+        <div class="login-card">
+            <div class="login-error" id="loginError"></div>
+
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" placeholder="officer.badge" required autofocus autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="Enter password" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="login-btn" id="loginBtn">Sign In</button>
+            </form>
+
+            <div class="twofa-section" id="twofaSection">
+                <div class="form-group">
+                    <label for="totpCode">Two-Factor Authentication Code</label>
+                    <input type="text" id="totpCode" maxlength="6" placeholder="000000" autocomplete="one-time-code" inputmode="numeric">
+                </div>
+                <button class="login-btn" id="twofaBtn" onclick="handleTwoFA()">Verify</button>
+            </div>
+        </div>
+
+        <div class="login-footer">
+            <p>Authorized personnel only. All access is logged.</p>
+            <p style="margin-top: 0.3rem;"><a href="{{ rmpg_flex_url }}">Return to RMPG Flex</a></p>
+        </div>
+    </div>
+
+    <script>
+    var FLEX_URL = '{{ rmpg_flex_url }}';
+    var ROOT = '{{ request.scope.get("root_path", "") }}';
+    var _tempToken = null;
+
+    function showError(msg) {
+        var el = document.getElementById('loginError');
+        el.textContent = msg;
+        el.classList.add('visible');
+    }
+
+    function hideError() {
+        document.getElementById('loginError').classList.remove('visible');
+    }
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        hideError();
+
+        var btn = document.getElementById('loginBtn');
+        btn.disabled = true;
+        btn.textContent = 'Signing in...';
+
+        var username = document.getElementById('username').value.trim();
+        var password = document.getElementById('password').value;
+
+        try {
+            var resp = await fetch(FLEX_URL + '/api/auth/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username: username, password: password }),
+            });
+
+            var data = await resp.json();
+
+            if (!resp.ok) {
+                showError(data.error || data.message || 'Invalid credentials');
+                btn.disabled = false;
+                btn.textContent = 'Sign In';
+                return;
+            }
+
+            // Handle 2FA required
+            if (data.requires2FA || data.step === 'setup_2fa') {
+                _tempToken = data.tempToken;
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('twofaSection').classList.add('visible');
+                document.getElementById('totpCode').focus();
+                btn.disabled = false;
+                btn.textContent = 'Sign In';
+                return;
+            }
+
+            // Handle password change required
+            if (data.step === 'password_change') {
+                showError('Password change required. Please change your password in RMPG Flex first.');
+                btn.disabled = false;
+                btn.textContent = 'Sign In';
+                return;
+            }
+
+            // Success - set cookie via our callback endpoint
+            await setTokenAndRedirect(data.token, data.refreshToken);
+
+        } catch (err) {
+            showError('Connection error. Please try again.');
+            btn.disabled = false;
+            btn.textContent = 'Sign In';
+        }
+    }
+
+    async function handleTwoFA() {
+        var btn = document.getElementById('twofaBtn');
+        btn.disabled = true;
+        btn.textContent = 'Verifying...';
+        hideError();
+
+        var code = document.getElementById('totpCode').value.trim();
+
+        try {
+            var resp = await fetch(FLEX_URL + '/api/auth/verify-2fa', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ tempToken: _tempToken, code: code }),
+            });
+
+            var data = await resp.json();
+
+            if (!resp.ok) {
+                showError(data.error || data.message || 'Invalid code');
+                btn.disabled = false;
+                btn.textContent = 'Verify';
+                return;
+            }
+
+            await setTokenAndRedirect(data.token, data.refreshToken);
+
+        } catch (err) {
+            showError('Verification failed. Please try again.');
+            btn.disabled = false;
+            btn.textContent = 'Verify';
+        }
+    }
+
+    async function setTokenAndRedirect(token, refreshToken) {
+        var resp = await fetch(ROOT + '/auth/callback', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ token: token, refreshToken: refreshToken }),
+        });
+
+        if (resp.ok) {
+            window.location.href = ROOT + '/';
+        } else {
+            showError('Failed to establish session. Please try again.');
+        }
+    }
+    </script>
+</body>
+</html>
